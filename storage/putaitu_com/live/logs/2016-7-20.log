@@ -1,0 +1,4 @@
+
+ApiController
+----------
+ (2016/7/20-14:9:29) MongoError: server localhost:27017 received an error {"name":"MongoError","message":"write EPIPE"}
