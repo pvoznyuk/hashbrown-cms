@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: client/js/views/JSONEditor.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: client/js/views/JSONEditor.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>'use strict';
+
+// Lib
+let beautify = require('js-beautify').js_beautify;
+
+// Views
+let MessageModal = require('./MessageModal');
+
+/**
+ * A basic JSON editor for any object
+ */
+class JSONEditor extends View {
+    constructor(params) {
+        super(params);
+
+        this.$element = _.div({class: 'json-editor flex-vertical'});
+        this.$error = _.div({class: 'panel panel-danger'},
+            _.div({class: 'panel-heading'}),
+            _.div({class: 'panel-body'})
+        ).hide();
+
+        this.fetch();
+    }
+
+    /**
+     * Event: Successful API call
+     */
+    onSuccess() {
+    
+    }
+
+    /**
+     * Event: Failed API call
+     */
+    onError(e) {
+        alert(e);
+    }
+
+    /**
+     * Event: Click basic. Returns to the regular editor
+     */
+    onClickBasic() {
+        let url = $('.navbar-main .pane-container.active .pane-item-container.active .pane-item').attr('href');
+    
+        if(url) {
+            location = url;
+        } else {
+            debug.log('Invalid url "' + url + '"', this);
+        }
+    }
+
+    /**
+     * Event: Click save. Posts the model to the apiPath
+     */
+    onClickSave() {
+        let view = this;
+
+        if(this.debug()) {
+            apiCall('post', this.apiPath, this.model)
+            .then(this.onSuccess)
+            .catch(this.onError);
+       
+        } else {
+            new MessageModal({
+                model: {
+                    title: 'Unable to save',
+                    body: 'Please refer to the error prompt for details'
+                }
+            });
+
+        }
+    }
+
+    /**
+     * Event: Click beautify button
+     */
+    onClickBeautify() {
+        try {
+            this.value = beautify(this.value);
+            this.$element.find('textarea').val(this.value);
+        
+        } catch(e) {
+            this.$error.children('.panel-heading').html('JSON error');
+            this.$error.children('.panel-body').html(e);
+            this.$error.show();
+
+        }
+    }
+
+    /**
+     * Debug the JSON string
+     */
+    debug() {
+        let isValid = true;
+        
+        // Function for checking model integrity
+        let check = (k, v) => {
+            switch(k) {
+                case 'schemaId': case 'parentSchemaId':
+                    for(let id in resources.schemas) {
+                        if(id == v) {
+                            return;
+                        }
+                    }   
+
+                    return 'Schema "' + v + '" not found';
+               
+                case 'schemaBindings':
+                    let invalidSchemas = v.slice(0);
+                    
+                    for(let r in resources.schemas) {
+                        let schema = resources.schemas[r];
+                        
+                        for(let b = invalidSchemas.length - 1; b >= 0; b--) {
+                            if(schema.id == invalidSchemas[b]) {
+                                invalidSchemas.splice(b, 1);
+                            }
+                        }   
+                    }
+
+                    if(invalidSchemas.length > 0) {
+                        if(invalidSchemas.length == 1) {
+                            return 'Schema "' + invalidSchemas[0] + '" not found';
+                        } else {
+                            return 'Schemas "' + invalidSchemas.join(', ') + '" not found';
+                        }
+                    }
+
+                    break;
+                    
+                case 'connections':
+                    let invalidConnections = v.slice(0);
+                    
+                    for(let r in resources.connections) {
+                        let connection = resources.connections[r];
+
+                        for(let c = invalidConnections.length - 1; c >= 0; c--) {
+                            if(connection.id == invalidConnections[c]) {
+                                invalidConnections.splice(c, 1);
+                            }
+                        }   
+                    }
+
+                    if(invalidConnections.length > 0) {
+                        if(invalidConnections.length == 1) {
+                            return 'Connection "' + invalidConnections[0] + '" not found';
+                        } else {
+                            return 'Connections "' + invalidConnections.join(', ') + '" not found';
+                        }
+                    }
+
+                    break;
+
+                case 'template':
+                    if(typeof v === 'string') {
+                        for(let id of resources.templates) {
+                            if(id == v) {
+                                return;
+                            }
+                        }   
+                        
+                        for(let id of resources.sectionTemplates) {
+                            if(id == v) {
+                                return;
+                            }
+                        }   
+
+                        return 'Template "' + v + '" not found';
+                    }
+
+                    break;
+
+                case 'config':
+                    if(v.allowedTemplates) {
+                        let invalidTemplates = v.allowedTemplates.slice(0);
+                        let resource = resources[(v.resource || 'templates')];
+
+                        for(let r in resource) {
+                            for(let a = invalidTemplates.length - 1; a >= 0; a--) {
+                                if(resource[r] == invalidTemplates[a]) {
+                                    invalidTemplates.splice(a, 1);
+                                }
+                            }   
+                        }
+
+                        if(invalidTemplates.length > 0) {
+                            if(invalidTemplates.length == 1) {
+                                return 'Template "' + invalidTemplates[0] + '" not found';
+                            } else {
+                                return 'Templates "' + invalidTemplates.join(', ') + '" not found';
+                            }
+                        }
+                    }
+
+                    break;
+            }
+
+            return;
+        };
+
+        // Function for recursing through object
+        let recurse = (obj) => {
+            if(obj instanceof Object) {
+                for(let k in obj) {
+                    let v = obj[k];
+
+                    let failMessage = check(k, v);
+                    
+                    if(failMessage) {
+                        this.$error.children('.panel-heading').html('Schema error');
+                        this.$error.children('.panel-body').html(failMessage);
+                        this.$error.show();
+                    
+                        isValid = false;
+                    };
+
+                    recurse(v);
+                }
+            }
+        };
+        
+        // Hide error message initially
+        this.$error.hide();
+
+        // Syntax check
+        try {
+            this.model = JSON.parse(this.value);
+
+        } catch(e) {
+            this.$error.children('.panel-heading').html('JSON error');
+            this.$error.children('.panel-body').html(e);
+            this.$error.show();
+
+            isValid = false;
+        }
+
+        // Integrity check
+        recurse(this.model);
+
+        return isValid;
+    }
+
+    /**
+     * Event: Change text. Make sure the value is up to date
+     */
+    onChangeText() {
+        this.value = this.$element.find('textarea').val();
+
+        let $lineNumbers = this.$element.find('.line-numbers');
+
+        $lineNumbers.empty();
+
+        for(let i = 0; i &lt; this.value.split(/\r\n|\r|\n/).length; i++) {
+            $lineNumbers.append(i + '&lt;br />');
+        }
+
+        this.debug();
+    }
+
+    render() {
+        this.value = beautify(JSON.stringify(this.model));
+
+        this.$element.html([
+            _.div({class: 'editor-container'},
+                _.div({class: 'line-numbers'}),
+                _.textarea({class: 'flex-expand', disabled: this.model.locked},
+                    this.value
+                )
+                .on('keydown', (e) => { if(e.which == 9) { e.preventDefault(); return false; } })
+                .on('keyup change propertychange paste', (e) => { return this.onChangeText(); }),
+                this.$error,
+                _.button({class: 'btn btn-round btn-raised btn-prettify'},
+                    '{ }'
+                ).click(() => { this.onClickBeautify(); })
+            ),
+            _.div({class: 'panel panel-default panel-buttons'}, 
+                _.div({class: 'btn-group'},
+                    _.button({class: 'btn btn-embedded'},
+                        'Basic'
+                    ).click(() => { this.onClickBasic(); }),
+                    _.if(!this.model.locked,
+                        _.button({class: 'btn btn-raised btn-success'},
+                            'Save '
+                        ).click(() => { this.onClickSave(); })
+                    )
+                )
+            )
+        ]);
+
+        this.onChangeText();
+    }
+}
+
+module.exports = JSONEditor;
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="ArrayEditor.html">ArrayEditor</a></li><li><a href="BooleanEditor.html">BooleanEditor</a></li><li><a href="Connection.html">Connection</a></li><li><a href="Content.html">Content</a></li><li><a href="ContentReferenceEditor.html">ContentReferenceEditor</a></li><li><a href="ContentSchema.html">ContentSchema</a></li><li><a href="ContentSchemaReferenceEditor.html">ContentSchemaReferenceEditor</a></li><li><a href="DateEditor.html">DateEditor</a></li><li><a href="DropdownEditor.html">DropdownEditor</a></li><li><a href="Entity.html">Entity</a></li><li><a href="FieldSchema.html">FieldSchema</a></li><li><a href="Form.html">Form</a></li><li><a href="FormEditor.html">FormEditor</a></li><li><a href="JSONEditor.html">JSONEditor</a></li><li><a href="LanguageEditor.html">LanguageEditor</a></li><li><a href="LanguageSettings.html">LanguageSettings</a></li><li><a href="Media.html">Media</a></li><li><a href="MediaReferenceEditor.html">MediaReferenceEditor</a></li><li><a href="MessageModal.html">MessageModal</a></li><li><a href="NavbarMain.html">NavbarMain</a></li><li><a href="PeriodEditor.html">PeriodEditor</a></li><li><a href="ProjectHelper.html">ProjectHelper</a></li><li><a href="RichTextEditor.html">RichTextEditor</a></li><li><a href="Schema.html">Schema</a></li><li><a href="SchemaEditor.html">SchemaEditor</a></li><li><a href="SchemaHelper.html">SchemaHelper</a></li><li><a href="StringEditor.html">StringEditor</a></li><li><a href="StructEditor.html">StructEditor</a></li><li><a href="TemplateReferenceEditor.html">TemplateReferenceEditor</a></li><li><a href="UrlEditor.html">UrlEditor</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.0</a> on Mon Aug 29 2016 17:33:28 GMT+0200 (CEST)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

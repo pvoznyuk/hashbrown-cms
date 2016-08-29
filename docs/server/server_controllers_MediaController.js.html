@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: server/controllers/MediaController.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: server/controllers/MediaController.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>'use strict';
+
+// Classes
+let ApiController = require('./ApiController');
+let Media = require('../models/Media');
+
+class MediaController extends ApiController {
+    /**
+     * Initiates this controller
+     */
+    static init(app) {
+        app.get('/media/:project/:environment/:id', this.middleware({ authenticate: false }), this.serveMedia);
+        
+        app.post('/api/:project/:environment/media/new', this.middleware(), MediaHelper.getUploadHandler(), this.createMedia);
+        app.get('/api/:project/:environment/media/tree', this.middleware(), this.getMediaTree);
+        app.post('/api/:project/:environment/media/tree/:id', this.middleware(), this.setMediaTreeItem);
+        app.get('/api/:project/:environment/media/:id', this.middleware(), this.getSingleMedia);
+        app.post('/api/:project/:environment/media/:id', this.middleware(), MediaHelper.getUploadHandler(), this.setMedia);
+        app.delete('/api/:project/:environment/media/:id', this.middleware(), this.deleteMedia);
+        app.get('/api/:project/:environment/media', this.middleware(), this.getMedia);
+    }
+
+    /**
+     * Gets a Media object by id
+     */
+    static serveMedia(req, res) {
+        let id = req.params.id;
+
+        ConnectionHelper.getMediaProvider()
+        .then((connection) => {
+            connection.getMedia(id)
+            .then((media) => {
+                if(media) {
+                    res.redirect(media.url);
+                } else {
+                    res.status(404).send('Not found');
+                }
+            })
+            .catch((e) => {
+                res.status(400).end(e.message);  
+            });
+        })
+        .catch((e) => {
+            res.status(400).end(e.message);  
+        });
+    }
+    
+    /**
+     * Gets the Media tree
+     */
+    static getMediaTree(req, res) {
+        MediaHelper.getTree()
+        .then((tree) => {
+            res.status(200).send(tree);
+        })
+        .catch((e) => {
+            res.status(404).send([]);
+            debug.log(e, ApiController);
+        });            
+    }
+    
+    /**
+     * Sets a Media tree item
+     */
+    static setMediaTreeItem(req, res) {
+        let id = req.params.id;
+        let item = req.body;
+
+        MediaHelper.setTreeItem(id, item)
+        .then(() => {
+            res.status(200).send(item);
+        })
+        .catch((e) => {
+            res.status(502).send(e);
+            debug.log(e, ApiController);
+        });            
+    }
+    
+    /**
+     * Gets a list of Media objects
+     */
+    static getMedia(req, res) {
+        ConnectionHelper.getMediaProvider()
+        .then((connection) => {
+            connection.getAllMedia()
+            .then((media) => {
+                MediaHelper.getTree()
+                .then((tree) => {
+                    for(let i in media) {
+                        media[i].applyFolderFromTree(tree);  
+                    }
+
+                    res.status(200).send(media);
+                })
+                .catch((e) => {
+                    debug.log(e, ApiController);
+                    res.status(404).send([]);
+                });
+            })
+            .catch((e) => {
+                debug.log(e, ApiController);
+                res.status(404).send([]);    
+            });            
+        })
+        .catch((e) => {
+            debug.log(e, ApiController);
+            res.status(404).send([]);    
+        });            
+    }
+    
+    /**
+     * Gets a single Media object
+     */
+    static getSingleMedia(req, res) {
+        let id = req.params.id;
+
+        ConnectionHelper.getMediaProvider()
+        .then((connection) => {
+            connection.getMedia(id)
+            .then((media) => {
+                MediaHelper.getTree()
+                .then((tree) => {
+                    media.applyFolderFromTree(tree);
+
+                    res.status(200).send(media);
+                })
+                .catch((e) => {
+                    debug.log(e, ApiController);
+                    res.status(404).send(e.message);    
+                });            
+            })
+            .catch((e) => {
+                debug.log(e, ApiController);
+                res.status(404).send(e.message);    
+            });            
+        })            
+        .catch((e) => {
+            debug.log(e, ApiController);
+            res.status(404).send(e.message);    
+        });            
+    }
+    
+    /**
+     * Deletes a Media object
+     */
+    static deleteMedia(req, res) {
+        let id = req.params.id;
+
+        ConnectionHelper.getMediaProvider()
+        .then((connection) => {
+            connection.removeMedia(id)
+            .then(() => {
+                res.sendStatus(200);
+            })
+            .catch((e) => {
+                res.status(404).send(e);    
+            });            
+        })            
+        .catch((e) => {
+            res.status(404).send(e);
+            debug.warning(e, ApiController);
+        });            
+    }
+
+    /**
+     * Sets a Media object
+     */
+    static setMedia(req, res) {
+        let file = req.file;
+        let id = req.params.id;
+
+        if(file) {
+            ConnectionHelper.getMediaProvider()
+            .then((connection) => {
+                connection.setMedia(id, file)
+                .then(() => {
+                    // Remove temp file
+                    fs.unlinkSync(file.path);
+
+                    // Return the id
+                    res.send(id);
+                })
+                .catch((e) => {
+                    debug.warning(e);
+                    res.status(400).send(e);
+                });            
+            })            
+            .catch((e) => {
+                debug.warning(e);
+                res.status(400).send(e);
+            });            
+
+        } else {
+            debug.warning(e);
+            res.status(400).send(e);
+        }
+    }
+
+    /**
+     * Creates a Media object
+     */
+    static createMedia(req, res) {
+        let file = req.file;
+
+        if(file) {
+            let media = Media.create();
+
+            ConnectionHelper.getMediaProvider()
+                .then((connection) => {
+                    connection.setMedia(media.id, file)
+                        .then(() => {
+                            res.status(200).send(media.id);
+                        })
+                    .catch((e) => {
+                        debug.warning(e);
+                        res.status(400).send(e);    
+                    });
+                })            
+            .catch((e) => {
+                debug.warning(e);
+                res.status(400).send(e);    
+            });
+
+        } else {
+            debug.warning(e);
+            res.status(400).send(e);    
+        }
+    }
+}
+
+module.exports = MediaController;
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="ApiController.html">ApiController</a></li><li><a href="Connection.html">Connection</a></li><li><a href="ConnectionController.html">ConnectionController</a></li><li><a href="Content.html">Content</a></li><li><a href="ContentController.html">ContentController</a></li><li><a href="ContentSchema.html">ContentSchema</a></li><li><a href="Controller.html">Controller</a></li><li><a href="Entity.html">Entity</a></li><li><a href="FieldSchema.html">FieldSchema</a></li><li><a href="Form.html">Form</a></li><li><a href="Media.html">Media</a></li><li><a href="ProjectHelper.html">ProjectHelper</a></li><li><a href="Schema.html">Schema</a></li><li><a href="SchemaController.html">SchemaController</a></li><li><a href="SchemaHelper.html">SchemaHelper</a></li><li><a href="UserHelper.html">UserHelper</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.0</a> on Mon Aug 29 2016 17:33:36 GMT+0200 (CEST)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>
