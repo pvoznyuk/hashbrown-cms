@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: common/models/Entity.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: common/models/Entity.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>'use strict';
+
+let crypto = require('crypto');
+
+/**
+ * The base class for everything
+ */
+class Entity {
+    /**
+     * Constructs an entity
+     *
+     * @param {Object} properties
+     */
+    constructor(properties) {
+        this.structure();
+
+        Object.seal(this);
+
+        for(let k in properties) {
+            try {
+                this[k] = properties[k] || this[k];
+            
+            } catch(e) {
+                debug.warning(e, this);
+            }
+        }
+    }
+
+    /**
+     * Sets up a structure before sealing the object
+     */
+    structure() {
+
+    }
+
+    /**
+     * Generates a new random id
+     *
+     * @returns {String} id
+     */
+    static createId() {
+        return crypto.randomBytes(20).toString('hex');
+    }
+
+    /**
+     * TODO: Deprecate this method
+     */
+    getFields() {
+        return this.getObject();
+    }
+
+    /**
+     * Gets a copy of every field in this object as a mutable object
+     *
+     * @returns {Object} object
+     */
+    getObject() {
+        let fields = {};
+
+        for(let k in this) {
+            let v = this[k];
+
+            if(typeof v !== 'function') {
+                fields[k] = v;
+            }
+        }
+
+        return fields;
+    }
+
+    /**
+     * Defines a type safe member variable
+     *
+     * @param {String} type
+     * @param {String} name
+     * @param {Anything} defaultValue
+     */
+    def(type, name, defaultValue) {
+        if(typeof type !== 'function') {
+            throw new TypeError('Parameter \'type\' cannot be of type \'' + (typeof type) + '\'.');
+        }
+        
+        if(typeof name !== 'string') {
+            throw new TypeError('Parameter \'name\' cannot be of type \'' + (typeof name) + '\'.');
+        }
+
+        if(!defaultValue || typeof defaultValue === 'undefined') {
+            switch(type) {
+                case String:
+                    defaultValue = '';
+                    break;
+
+                case Number:
+                    defaultValue = 0;
+                    break;
+
+                case Date:
+                    defaultValue = new Date();
+                    break;
+
+                case Boolean:
+                    defaultValue = false;
+                    break;
+
+                default:
+                    defaultValue = null;
+                    break;
+            }
+        }
+
+        let thisValue = defaultValue;
+        let thisType = type;
+
+        Object.defineProperty(this, name, {
+            enumerable: true,
+            get: () => {
+                return thisValue;
+            },
+            set: (thatValue) => {
+                // Auto cast for Booleans
+                if(thisType == Boolean) {
+                    if(!thatValue) {
+                        thatValue = false;
+
+                    } else if(thatValue.constructor == String) {
+                        if(thatValue === 'false') {
+                            thatValue = false;
+                        } else if(thatValue === 'true') {
+                            thatValue = true;
+                        }
+                    }
+                }
+
+                // Auto cast for numbers
+                if(thisType == Number) {
+                    if(!thatValue) {
+                        thatValue = 0;
+                    
+                    } else if(thatValue.constructor == String &amp;&amp; !isNaN(thatValue)) {
+                        thatValue = parseFloat(thatValue);
+
+                    }
+                }
+
+                if(thatValue) {
+                    let thatType = thatValue.constructor;
+
+                    if(thisType !== thatType) {
+                        throw new TypeError(this.constructor.name + '.' + name + ' is of type \'' + thisType.name + '\' and cannot implicitly be converted to \'' + thatType.name + '\'.');
+                    } else {
+                        thisValue = thatValue; 
+                    }
+                
+                } else {
+                    thisValue = defaultValue;
+                
+                }
+            }
+        });
+    }
+}
+
+module.exports = Entity;
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="ApiController.html">ApiController</a></li><li><a href="Connection.html">Connection</a></li><li><a href="ConnectionController.html">ConnectionController</a></li><li><a href="Content.html">Content</a></li><li><a href="ContentController.html">ContentController</a></li><li><a href="ContentSchema.html">ContentSchema</a></li><li><a href="Controller.html">Controller</a></li><li><a href="Entity.html">Entity</a></li><li><a href="FieldSchema.html">FieldSchema</a></li><li><a href="Form.html">Form</a></li><li><a href="Media.html">Media</a></li><li><a href="ProjectHelper.html">ProjectHelper</a></li><li><a href="Schema.html">Schema</a></li><li><a href="SchemaController.html">SchemaController</a></li><li><a href="SchemaHelper.html">SchemaHelper</a></li><li><a href="UserHelper.html">UserHelper</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.0</a> on Mon Aug 29 2016 17:33:36 GMT+0200 (CEST)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

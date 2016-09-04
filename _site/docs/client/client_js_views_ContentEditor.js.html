@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: client/js/views/ContentEditor.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: client/js/views/ContentEditor.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>'use strict';
+
+// Views
+let MessageModal = require('./MessageModal');
+
+// Helpers
+let LanguageHelper = require('../../../common/helpers/LanguageHelper');
+
+class ContentEditor extends View {
+    constructor(params) {
+        super(params);
+
+        this.$element = _.div({class: 'editor content-editor'});
+
+        this.fetch();
+    }
+
+    /**
+     * Event: Click advanced. Routes to the JSON editor
+     */
+    onClickAdvanced() {
+        location.hash = '/content/json/' + this.model.id;
+    }
+
+    /**
+     * Event: Click unpublish. Removes remove content and sets "unpublished" flag
+     *
+     * @param {Object} publishing
+     */
+    onClickUnpublish(publishing) {
+        let view = this;
+
+        function unpublishConnections() {
+            apiCall('post', 'content/unpublish', view.model)
+            .then(onSuccess)
+            .catch(onError);
+        }
+        
+        function onSuccess() {
+            debug.log('Unpublished content with id "' + view.model.id + '"', this); 
+        
+            reloadResource('content')
+            .then(function() {
+                view.render();
+            });
+        }
+
+        function onError(err) {
+            new MessageModal({
+                model: {
+                    title: 'Error',
+                    body: err
+                }
+            });
+        }
+
+        view.$unpublishBtn.toggleClass('working', true);
+
+        // Set unpublished flag
+        view.model.unpublished = true;
+
+        // Save content to database
+        apiCall('post', 'content/' + view.model.id, view.model)
+        .then(unpublishConnections)
+        .catch(onError);
+    }
+    
+    /**
+     * Event: Click save. Posts the model to the modelUrl
+     *
+     * @param {Object} publishing
+     */
+    onClickSave(publishing) {
+        let view = this;
+
+        view.model.unpublished = false;
+
+        function publishConnections() {
+            apiCall('post', 'content/publish', view.model)
+            .then(onSuccess)
+            .catch(onError);
+        }
+
+        function onSuccess() {
+            view.$saveBtn.toggleClass('saving', false);
+        
+            reloadResource('content')
+            .then(function() {
+                let navbar = ViewHelper.get('NavbarMain');
+
+                view.reload();
+                navbar.reload();
+            });
+        }
+
+        function onError(err) {
+            new MessageModal({
+                model: {
+                    title: 'Error',
+                    body: err
+                }
+            });
+        }
+
+        view.$saveBtn.toggleClass('working', true);
+
+        // Save content to database
+        apiCall('post', 'content/' + view.model.id, view.model)
+        .then((response) => {
+            if(publishing.connections &amp;&amp; publishing.connections.length > 0) {
+                publishConnections();
+            
+            } else {
+                onSuccess();
+
+            }
+        }).
+        catch(onError);
+    }
+
+    /**
+     * Event: Click toggle publish
+     */
+    onClickTogglePublish() {
+
+    }
+
+    /**
+     * Event: On click remove
+     *
+     * @param {Object} publishing
+     */
+    onClickDelete(publishing) {
+        let view = this;
+
+        function unpublishConnections() {
+            apiCall('post', 'content/unpublish', view.model)
+            .then(onSuccess)
+            .catch(onError);
+        }
+        
+        function onSuccess() {
+            debug.log('Removed content with id "' + view.model.id + '"', this); 
+        
+            reloadResource('content')
+            .then(function() {
+                ViewHelper.get('NavbarMain').reload();
+                
+                // Cancel the ContentEditor view
+                location.hash = '/content/';
+            });
+        }
+
+        function onError(err) {
+            new MessageModal({
+                model: {
+                    title: 'Error',
+                    body: err
+                }
+            });
+        }
+
+        new MessageModal({
+            model: {
+                title: 'Delete content',
+                body: 'Are you sure you want to delete the content "' + view.model.prop('title', window.language) + '"?'
+            },
+            buttons: [
+                {
+                    label: 'Cancel',
+                    class: 'btn-default',
+                    callback: function() {
+                    }
+                },
+                {
+                    label: 'OK',
+                    class: 'btn-danger',
+                    callback: function() {
+                        apiCall('delete', 'content/' + view.model.id)
+                        .then(() => {
+                            if(publishing.connections &amp;&amp; publishing.connections.length > 0) {
+                                unpublishConnections();
+                            
+                            } else {
+                                onSuccess();
+                            }
+                        })
+                        .catch(onError);
+                    }
+                }
+            ]
+        });
+    }
+
+    /**
+     * Reload this view
+     */
+    reload() {
+        this.fetch();
+    }
+
+    /**
+     * Binds event to fire when field editors are ready
+     * Or fires them if no callback was passed
+     *
+     * @param {Function} callback
+     */
+    onFieldEditorsReady(callback) {
+        if(!this.fieldEditorReadyCallbacks) {
+            this.fieldEditorReadyCallbacks = [];
+        }
+
+        if(callback) {
+            this.fieldEditorReadyCallbacks.push(callback);
+
+        } else {
+            for(let registeredCallback of this.fieldEditorReadyCallbacks) {
+                registeredCallback();
+            }
+
+            this.fieldEditorReadyCallbacks = [];
+        }
+    }
+
+    /**
+     * Renders a field view
+     *
+     * @param {Object} fieldValue
+     * @param {Object} schemaValue
+     * @param {Function} onChange
+     *
+     * @return {Object} element
+     */
+    renderField(fieldValue, schemaValue, onChange, config) {
+        let fieldSchema = resources.schemas[schemaValue.schemaId];
+
+        if(fieldSchema) {
+            let fieldEditor = resources.editors[fieldSchema.editorId];
+            
+            if(fieldEditor) {
+                let fieldEditorInstance = new fieldEditor({
+                    value: fieldValue,
+                    disabled: schemaValue.disabled || false,
+                    config: config || {},
+                    schema: fieldSchema,
+                    multilingual: schemaValue.multilingual
+                });
+
+                fieldEditorInstance.on('change', onChange);
+
+                return fieldEditorInstance.$element;
+
+            } else {
+                debug.log('No editor by id "' + fieldSchema.editorId + '" found', this);
+            
+            }
+        
+        } else {
+            debug.log('No field schema found for schema id "' + schemaValue.schemaId + '"', this);
+
+        }
+    }
+
+    /**
+     * Renders fields
+     */
+    renderFields(tabId, schema, fields) {
+        let view = this;
+        let schemaFields = {};
+
+        // Map out fields to render
+        for(let alias in schema) {
+            let field = schema[alias];
+
+            let noTabAssigned = !field.tabId;
+            let isMetaTab = tabId == 'meta';
+            let thisTabAssigned = field.tabId == tabId;
+
+            // Don't include "properties" field, if this is the meta tab
+            if(isMetaTab &amp;&amp; alias == 'properties') {
+                continue;
+            }
+
+            if((noTabAssigned &amp;&amp; isMetaTab) || thisTabAssigned) {
+                schemaFields[alias] = field;
+            }
+        }
+
+        return _.each(schemaFields, (key, schemaValue) => {
+            let fieldSchema = resources.schemas[schemaValue.schemaId];
+
+            // Sanity check
+            fields[key] = ContentHelper.fieldSanityCheck(fields[key], schemaValue);
+
+            return _.div({class: 'field-container', 'data-key': key},
+                _.div({class: 'field-key'},
+                    _.span({class: 'field-key-icon fa fa-' + fieldSchema.icon}),
+                    _.span({class: 'field-key-label'}, schemaValue.label || key)
+                ),
+                _.div({class: 'field-value'},
+                    view.renderField(
+                        schemaValue.multilingual ? fields[key][window.language] : fields[key],
+                        schema[key],
+                        function(newValue) {
+                            if(schemaValue.multilingual) {
+                                fields[key]._multilingual = true;
+                                fields[key][window.language] = newValue;
+
+                            } else {
+                                fields[key] = newValue;
+                            }
+                        },
+                        schemaValue.config
+                    )
+                )
+            );
+        });
+    }
+
+    /**
+     * Event: Click tab
+     *
+     * @param {String} tab
+     */
+    onClickTab(tab) {
+        location.hash = '/content/' + Router.params.id + '/' + tab;
+    }
+
+    /**
+     * Renders the editor
+     *
+     * @param {Content} content
+     * @param {Object} schema
+     *
+     * @return {Object} element
+     */
+    renderEditor(content, schema) {
+        let view = this;
+
+        // Check for active tab
+        function isTabActive(tabId) {
+            let targetTab = Router.params.tab || schema.defaultTabId || 'meta';
+
+            return tabId == targetTab;
+        }
+
+        // Render editor
+        return _.div({class: 'object'},
+            new LanguagePicker().$element,
+            _.ul({class: 'nav nav-tabs'}, 
+                _.each(schema.tabs, (tabId, tab) => {
+                    return _.li({class: isTabActive(tabId) ? 'active' : ''}, 
+                        _.a({'data-toggle': 'tab', href: '#tab-' + tabId},
+                            tab
+                        ).click(() => { this.onClickTab(tabId); })
+                    );
+                }),
+                _.li({class: isTabActive('meta') ? 'active' : ''}, 
+                    _.a({'data-toggle': 'tab', href: '#tab-meta'},
+                        'meta'
+                    ).click(() => { this.onClickTab('meta'); })
+                )
+            ),
+            _.div({class: 'tab-content'},
+                // Render content properties
+                _.each(schema.tabs, (tabId, tab) => {
+                    return _.div({id: 'tab-' + tabId, class: 'tab-pane' + (isTabActive(tabId) ? ' active' : '')},
+                        this.renderFields(tabId, schema.fields.properties, content.properties)
+                    );
+                }),
+
+                // Render meta properties
+                _.div({id: 'tab-meta', class: 'tab-pane' + (isTabActive('meta') ? ' active' : '')},
+                    this.renderFields('meta', schema.fields, content),
+                    this.renderFields('meta', schema.fields.properties, content.properties)
+                )
+            )
+        );
+    }
+
+    render() {
+        SchemaHelper.getSchemaWithParentFields(this.model.schemaId)
+        .then((contentSchema) => {
+            if(contentSchema) {
+                if(!this.model.properties) {
+                    this.model.properties = {};
+                }
+
+                this.model = new Content(this.model);
+
+                this.model.getSettings('publishing')
+                .then((publishing) => {
+                    this.$element.html(
+                        this.renderEditor(this.model, contentSchema).append(
+                            // Buttons 
+                            _.div({class: 'panel panel-default panel-buttons'}, 
+                                _.div({class: 'btn-group'},
+
+                                    // JSON editor
+                                    _.button({class: 'btn btn-embedded'},
+                                        'Advanced'
+                                    ).click(() => { this.onClickAdvanced(); }),
+
+                                    // Delete
+                                    _.button({class: 'btn btn-danger btn-raised'},
+                                        'Delete'
+                                    ).click(() => { this.onClickDelete(publishing); }),
+
+                                    // Unpublish
+                                    _.if(publishing.connections &amp;&amp; publishing.connections.length > 0 &amp;&amp; !this.model.unpublished,
+                                        this.$unpublishBtn = _.button({class: 'btn btn-primary btn-raised btn-save'},
+                                            _.span({class: 'text-default'}, 'Unpublish'),
+                                            _.span({class: 'text-working'}, 'Unpublishing')
+                                        ).click(() => { this.onClickUnpublish(publishing); })
+                                    ),
+
+                                    // Save &amp; publish
+                                    this.$saveBtn = _.button({class: 'btn btn-success btn-raised btn-save'},
+                                        _.span({class: 'text-default'}, 'Save' + (publishing.connections &amp;&amp; publishing.connections.length > 0 ? ' &amp; publish' : '')),
+                                        _.span({class: 'text-working'}, 'Saving')
+                                    ).click(() => { this.onClickSave(publishing); })
+                                )
+                            )
+                        )
+                    );
+                })
+                .catch((e) => {
+                    errorModal(e);
+                });
+
+                this.onFieldEditorsReady();
+            }
+        })
+        .catch((e) => {
+            errorModal(e);
+        });
+    }
+}
+
+module.exports = ContentEditor;
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="ArrayEditor.html">ArrayEditor</a></li><li><a href="BooleanEditor.html">BooleanEditor</a></li><li><a href="Connection.html">Connection</a></li><li><a href="Content.html">Content</a></li><li><a href="ContentReferenceEditor.html">ContentReferenceEditor</a></li><li><a href="ContentSchema.html">ContentSchema</a></li><li><a href="ContentSchemaReferenceEditor.html">ContentSchemaReferenceEditor</a></li><li><a href="DateEditor.html">DateEditor</a></li><li><a href="DropdownEditor.html">DropdownEditor</a></li><li><a href="Entity.html">Entity</a></li><li><a href="FieldSchema.html">FieldSchema</a></li><li><a href="Form.html">Form</a></li><li><a href="FormEditor.html">FormEditor</a></li><li><a href="JSONEditor.html">JSONEditor</a></li><li><a href="LanguageEditor.html">LanguageEditor</a></li><li><a href="LanguageSettings.html">LanguageSettings</a></li><li><a href="Media.html">Media</a></li><li><a href="MediaReferenceEditor.html">MediaReferenceEditor</a></li><li><a href="MessageModal.html">MessageModal</a></li><li><a href="NavbarMain.html">NavbarMain</a></li><li><a href="PeriodEditor.html">PeriodEditor</a></li><li><a href="ProjectHelper.html">ProjectHelper</a></li><li><a href="RichTextEditor.html">RichTextEditor</a></li><li><a href="Schema.html">Schema</a></li><li><a href="SchemaEditor.html">SchemaEditor</a></li><li><a href="SchemaHelper.html">SchemaHelper</a></li><li><a href="StringEditor.html">StringEditor</a></li><li><a href="StructEditor.html">StructEditor</a></li><li><a href="TemplateReferenceEditor.html">TemplateReferenceEditor</a></li><li><a href="UrlEditor.html">UrlEditor</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.0</a> on Mon Aug 29 2016 17:33:28 GMT+0200 (CEST)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>
