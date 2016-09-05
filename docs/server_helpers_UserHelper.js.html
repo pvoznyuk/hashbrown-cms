@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: server/helpers/UserHelper.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: server/helpers/UserHelper.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>'use strict';
+
+let User = require('../models/User');
+
+/**
+ * A helper class for managing and getting information about CMS users
+ */
+class UserHelper {
+    /**
+     * Finds a User by username
+     *  
+     * @param {String} username
+     *
+     * @returns {Promise(User)} user
+     */
+    static findUser(username) {
+        return new Promise((resolve, reject) => {
+            MongoHelper.findOne(
+                'users',
+                'users',
+                {
+                    username: username
+                }
+            ).then((user) => {
+                if(Object.keys(user).length &lt; 1) {
+                    reject(new Error('No user "' + username + '" found'));
+                } else {
+                    resolve(new User(user));
+                }
+            })
+            .catch(reject);       
+        });
+    }
+
+    /**
+     * Revokes all User tokens
+     *
+     * @returns {Promise} promise
+     */
+    static revokeTokens(username) {
+        return new Promise((resolve, reject) => {
+            findUser(username)
+            .then((user) => {
+                user.tokens = [];
+
+                UserHelper.updateUser(username, user.getObject())
+                .then(resolve)
+                .catch(reject); 
+            })
+            .catch(reject);
+        });
+    }
+
+    /**
+     * Logs in a User
+     *
+     * @param {String} username
+     * @param {String} password
+     *
+     * @returns {Promise(String)} token
+     */
+    static loginUser(username, password) {
+        return new Promise((resolve, reject) => {
+            debug.log('Attempting login for user "' + username + '"...', this);
+
+            UserHelper.findUser(username)
+            .then((user) => {
+                if(user.validatePassword(password)) {
+                    let token = user.generateToken();
+                   
+                    user.cleanUpTokens();
+
+                    UserHelper.updateUser(username, user.getFields())
+                    .then(() => {
+                        resolve(token);
+                    })
+                    .catch(reject);
+                } else {
+                    reject(new Error('Invalid password'));
+                }
+            })
+            .catch(reject);
+        });
+    }
+
+    /**
+     * Finds a token
+     *  
+     * @param {String} token
+     *
+     * @returns {Promise(User)} user
+     */
+    static findToken(token) {
+        return new Promise((resolve, reject) => {
+            MongoHelper.find(
+                'users',
+                'users',
+                {}
+            )
+            .then((users) => {
+                for(let u of users) {
+                    let user = new User(u);
+                    
+                    let valid = user.validateToken(token);
+
+                    if(valid) {
+                        resolve(user);
+                        return;
+                    }
+                }
+
+                resolve(null);
+            })
+            .catch(reject);
+        });
+    }
+    
+    /**
+     * Removes a Project scope from a User object
+     *
+     * @param {String} id
+     * @param {String} scope
+     *
+     * @returns {Promise} Promise
+     */
+    static removeUserProjectScope(id, scope) {
+        let foundUser = null;
+        
+        return MongoHelper.findOne('users', 'users', { id: id })
+        .then((found) => {
+            foundUser = found;
+
+            return ProjectHelper.getProject(scope); 
+        })
+        .then((project) => {
+            if(project.users.length &lt; 2) {
+                debug.error('The last user can\'t be removed from a project. If you want to delete the project, please do so explicitly', this);
+            
+            } else {
+                debug.log('Removing user "' + foundUser.username + '" from project "' + project.name + '"', this);
+
+                delete foundUser.scopes[scope];
+                
+                return MongoHelper.updateOne('users', 'users', { id: id }, foundUser);
+            }
+        });
+    }
+    
+    /**
+     * Adds a Project scope to a User object
+     *
+     * @param {String} id
+     * @param {String} project
+     * @param {Array} scopes
+     *
+     * @returns {Promise} Promise
+     */
+    static addUserProjectScope(id, project, scopes) {
+        return MongoHelper.findOne('users', 'users', { id: id })
+        .then((user) => {
+            user.scopes  = user.scopes || {};
+
+            user.scopes[project] = scopes || [];
+
+            return this.updateUserById(id, user);
+        });
+    }
+
+    /**
+     * Creates a User
+     *
+     * @param {String} username
+     * @param {String} password
+     * @param {Object} scopes
+     *
+     * @returns {Promise} promise
+     */
+    static createUser(username, password, scopes) {
+        let user = User.create(username, password);
+
+        user.scopes = scopes;
+
+        return new Promise((resolve, reject) => {
+            MongoHelper.findOne(
+                'users',
+                'users',
+                {
+                    username: username
+                }
+            ).then((found) => {
+                let foundUser = new User(found);
+
+                // User wasn't found, create
+                if(!found) {
+                    debug.log('Creating user "' + username + '"...', this);
+                    
+                    MongoHelper.insertOne(
+                        'users',
+                        'users',
+                        user.getFields()
+                    ).then(() => {
+                        debug.log('Created user "' + username + '" successfully', this);
+                        
+                        resolve(user);
+                    })
+                    .catch(reject);
+
+                // If scopes are defined and credentials match
+                } else if(
+                    scopes &amp;&amp;
+                    user.username === found.username &amp;&amp;
+                    foundUser.validatePassword(password)
+                ) {
+                    for(let project in scopes) {
+                        let projectScopes = scopes[project] || [];
+
+                        // User already has project scope, merge them
+                        if(found.scopes[project]) {
+                            for(let projectScope in projectScopes) {
+                                if(found.scopes[project].indexOf(projectScope) &lt; 0) {
+                                    found.scopes[project].push(projectScope);
+                                }
+                            }
+                        
+                        } else {
+                            found.scopes[project] = projectScopes;
+                        
+                        }
+                    }
+
+                    MongoHelper.updateOne(
+                        'users',
+                        'users',
+                        {
+                            username: username  
+                        },
+                        found
+                    ).then(() => {
+                        resolve(found);
+                    })
+                    .catch(reject);
+
+                // Scopes are not defined, user is a duplicate
+                } else {
+                    reject(new Error('User with username "' + username + '" already exists'))
+
+                }
+            })
+            .catch(reject);
+        });
+    }
+
+    /**
+     * Makes a User an admin
+     *
+     * @param {String} username
+     *
+     * @returns {Promise} Promise
+     */
+    static makeUserAdmin(username) {
+        return this.getUser(username)
+        .then((user) => {
+            user.isAdmin = true;
+
+            return this.updateUser(username, user);
+        });
+    }
+
+    /**
+     * Gets a list of all users
+     *
+     * @param {String} project
+     *
+     * @returns {Promise} Array of User objects
+     */
+    static getAllUsers(project) {
+        let query = {};
+
+        if(project) {
+            debug.log('Getting all users with project "' + project + '" in scope...', this, 3);
+
+            query['scopes.' + project] = { $exists: true };
+
+        } else {
+            debug.log('Getting all users...', this);
+        }
+
+        return MongoHelper.find(
+            'users',
+            'users',
+            query,
+            {
+                tokens: 0,
+                password: 0
+            }
+        );
+    }
+    
+    /**
+     * Gets a single User by id
+     *
+     * @param {String} id
+     *
+     * @returns {Promise} User object
+     */
+    static getUserById(id) {
+        let query = {};
+
+        debug.log('Getting user "' + id + '"...', this);
+
+        return MongoHelper.findOne(
+            'users',
+            'users',
+            {
+                id: id
+            },
+            {
+                tokens: 0,
+                password: 0
+            }
+        );
+    }
+    
+    /**
+     * Gets a single User
+     *
+     * @param {String} username
+     *
+     * @returns {Promise} User object
+     */
+    static getUser(username) {
+        let query = {};
+
+        debug.log('Getting user "' + username + '"...', this);
+
+        return MongoHelper.findOne(
+            'users',
+            'users',
+            {
+                username: username
+            },
+            {
+                tokens: 0,
+                password: 0
+            }
+        );
+    }
+
+    /**
+     * Cleans up expired tokens
+     *
+     * @returns {Promise} promise
+     */
+    static cleanUpTokens(username) {
+        return new Promise((resolve, reject) => {
+            this.findUser(username)
+            .then((user) => {
+                if(user) {
+                    user.cleanUpTokens();
+
+                    this.updateUser(username, user.getObject())
+                    .then(() => {
+                        resolve();
+                    })
+                    .catch(reject);
+
+                } else {
+                    reject(new Error('No user by username "' + username + '"'))
+                
+                }
+            })
+            .catch(reject);
+        });
+    }
+    
+    /**
+     * Updates a User by id
+     *
+     * @param {String} id
+     * @param {Object} properties
+     *
+     * @returns {Promise} Promise
+     */
+    static updateUserById(id, properties) {
+        return new Promise((callback) => {
+            MongoHelper.mergeOne(
+                'users',
+                'users',
+                {
+                    id: id
+                },
+                properties
+            ).then(() => {
+                debug.log('Updated user "' + id + '" successfully', this);
+                
+                callback();
+            });
+        });
+    }
+
+    /**
+     * Updates a User
+     *
+     * @param {String} username
+     * @param {Object} properties
+     *
+     * @returns {Promise} promise
+     */
+    static updateUser(username, properties) {
+        return new Promise((callback) => {
+            MongoHelper.mergeOne(
+                'users',
+                'users',
+                {
+                    username: username
+                },
+                properties
+            ).then(() => {
+                debug.log('Updated "' + username + '" successfully', this);
+                
+                callback();
+            });
+        });
+    }
+}
+
+module.exports = UserHelper;
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="ApiController.html">ApiController</a></li><li><a href="ArrayEditor.html">ArrayEditor</a></li><li><a href="BooleanEditor.html">BooleanEditor</a></li><li><a href="Connection.html">Connection</a></li><li><a href="ConnectionController.html">ConnectionController</a></li><li><a href="Content.html">Content</a></li><li><a href="ContentController.html">ContentController</a></li><li><a href="ContentReferenceEditor.html">ContentReferenceEditor</a></li><li><a href="ContentSchema.html">ContentSchema</a></li><li><a href="ContentSchemaReferenceEditor.html">ContentSchemaReferenceEditor</a></li><li><a href="Controller.html">Controller</a></li><li><a href="DateEditor.html">DateEditor</a></li><li><a href="DropdownEditor.html">DropdownEditor</a></li><li><a href="Entity.html">Entity</a></li><li><a href="FieldSchema.html">FieldSchema</a></li><li><a href="Form.html">Form</a></li><li><a href="FormEditor.html">FormEditor</a></li><li><a href="JSONEditor.html">JSONEditor</a></li><li><a href="LanguageEditor.html">LanguageEditor</a></li><li><a href="LanguageSettings.html">LanguageSettings</a></li><li><a href="Media.html">Media</a></li><li><a href="MediaReferenceEditor.html">MediaReferenceEditor</a></li><li><a href="MessageModal.html">MessageModal</a></li><li><a href="NavbarMain.html">NavbarMain</a></li><li><a href="PeriodEditor.html">PeriodEditor</a></li><li><a href="ProjectHelper.html">ProjectHelper</a></li><li><a href="RichTextEditor.html">RichTextEditor</a></li><li><a href="Schema.html">Schema</a></li><li><a href="SchemaController.html">SchemaController</a></li><li><a href="SchemaEditor.html">SchemaEditor</a></li><li><a href="SchemaHelper.html">SchemaHelper</a></li><li><a href="StringEditor.html">StringEditor</a></li><li><a href="StructEditor.html">StructEditor</a></li><li><a href="TemplateReferenceEditor.html">TemplateReferenceEditor</a></li><li><a href="UrlEditor.html">UrlEditor</a></li><li><a href="UserHelper.html">UserHelper</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.0</a> on Mon Sep 05 2016 13:07:42 GMT+0200 (CEST)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

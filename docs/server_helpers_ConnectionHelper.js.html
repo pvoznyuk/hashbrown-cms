@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: server/helpers/ConnectionHelper.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: server/helpers/ConnectionHelper.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>'use strict';
+
+let ConnectionHelperCommon = require(appRoot + '/src/common/helpers/ConnectionHelper');
+
+let Connection = require(appRoot + '/src/common/models/Connection');
+
+class ConnectionHelper extends ConnectionHelperCommon {
+    /**
+     * Registers a connection type
+     *
+     * @param {String} name
+     * @param {Connection} connection
+     */
+    static registerConnectionType(name, connection) {
+        if(!ConnectionHelper.connectionTypes) {
+            ConnectionHelper.connectionTypes = {};
+        }
+
+        ConnectionHelper.connectionTypes[name] = connection;
+    }
+
+    /**
+     * Inits a connection with the appropriate constructor
+     *
+     * @param {Object} data
+     *
+     * @returns {Connection} connection
+     */
+    static initConnection(data) {
+        let constructor = ConnectionHelper.connectionTypes[data.type];
+           
+        if(typeof constructor === 'function') {
+            return new constructor(data);
+        } else {
+            return new Connection(data);
+        }
+    }
+
+    /**
+     * Publishes content
+     *
+     * @param {Content} content
+     *
+     * @returns {Promise} promise
+     */
+    static publishContent(content) {
+        let helper = this;
+
+        return new Promise((resolve, reject) => {
+            debug.log('Publishing content "' + content.id + '"...', this);
+            
+            content.getSettings('publishing')
+            .then((settings) => {
+                if(settings.connections &amp;&amp; settings.connections.length > 0) {
+                    debug.log('Looping through ' + settings.connections.length + ' connections...', this);
+                    
+                    function nextConnection(i) {
+                        ConnectionHelper.getConnectionById(settings.connections[i])
+                        .then((connection) => {
+                            debug.log('Publishing through connection "' + settings.connections[i] + '" of type "' + connection.type + '"...', helper);
+
+                            connection.publishContent(content)
+                            .then(() => {
+                                i++;
+
+                                if(i &lt; settings.connections.length) {
+                                    nextConnection(i);
+                                
+                                } else {
+                                    debug.log('Published content "' + content.id + '" successfully!', helper);
+
+                                    resolve();
+                                
+                                }
+                            })
+                            .catch(reject);
+                        })
+                        .catch(reject);
+                    }
+
+                    nextConnection(0);
+                
+                } else {
+                    reject(new Error('No connections defined for content "' + content.id + '"'));
+                }
+            })
+            .catch(reject);
+        }); 
+    }
+    
+    /**
+     * Unpublishes content
+     *
+     * @param {Content} content
+     *
+     * @returns {Promise} promise
+     */
+    static unpublishContent(content) {
+        let helper = this;
+
+        return new Promise((callback) => {
+            debug.log('Unpublishing content "' + content.id + '"...', this);
+            
+            content.getSettings('publishing')
+            .then((settings) => {
+                if(settings.connections &amp;&amp; settings.connections.length > 0) {
+                    debug.log('Looping through ' + settings.connections.length + ' connections...', this);
+                    
+                    function nextConnection(i) {
+                        ConnectionHelper.getConnectionById(settings.connections[i])
+                        .then((connection) => {
+                            debug.log('Unpublishing through connection "' + settings.connections[i] + '" of type "' + connection.type + '"...', helper);
+
+                            connection.unpublishContent(content.id)
+                            .then(() => {
+                                i++;
+
+                                if(i &lt; settings.connections.length) {
+                                    nextConnection(i);
+                                
+                                } else {
+                                    debug.log('Unpublished content "' + content.id + '" successfully!', helper);
+
+                                    callback();
+                                
+                                }
+                            });
+                        });
+                    }
+
+                    nextConnection(0);
+                
+                } else {
+                    debug.error('No connections defined for content "' + content.id + '"', this);
+                }
+            });
+        }); 
+    }
+
+    /**
+     * Gets all connections
+     *
+     * @return {Promise(Connection[])} promise
+     */
+    static getAllConnections() {
+        let collection = ProjectHelper.currentEnvironment + '.connections';
+        
+        return new Promise((callback) => {
+            MongoHelper.find(
+                ProjectHelper.currentProject,
+                collection,
+                {}
+            ).then((array) => {
+                let connections = [];
+
+                for(let data of array) {
+                    let connection = ConnectionHelper.initConnection(data);
+
+                    connections.push(connection);
+                }
+
+                callback(connections);
+            });
+        });
+    }
+    
+    /**
+     * Gets a connection by id
+     *
+     * @param {string} id
+     *
+     * @return {Promise(Connection)} promise
+     */
+    static getConnectionById(id) {
+        let collection = ProjectHelper.currentEnvironment + '.connections';
+        
+        return new Promise((callback) => {
+            MongoHelper.findOne(
+                ProjectHelper.currentProject,
+                collection,
+                {
+                    id: id
+                }
+            ).then((data) => {
+                if(data) {
+                    let connection = ConnectionHelper.initConnection(data);
+
+                    callback(connection);
+                } else {
+                    debug.error('Found no connection with id "' + id + '"', this);
+
+                }
+            });
+        });
+    }
+    
+    /**
+     * Removes a connection by id
+     *
+     * @param {string} id
+     *
+     * @return {Promise} promise
+     */
+    static removeConnectionById(id) {
+        let collection = ProjectHelper.currentEnvironment + '.connections';
+        
+        return MongoHelper.removeOne(
+            ProjectHelper.currentProject,
+            collection,
+            {
+                id: id
+            }
+        );
+    }
+    
+    /**
+     * Sets a connection setting by id
+     *
+     * @param {string} id
+     * @param {Object} newSettings
+     *
+     * @return {Promise} promise
+     */
+    static setConnectionSettingById(id, newSettings) {
+        let collection = ProjectHelper.currentEnvironment + '.connections';
+        
+        return new Promise(function(callback) {
+            // First find the connection
+            MongoHelper.findOne(
+                ProjectHelper.currentProject,
+                collection,
+                {
+                    id: id
+                }
+            )
+            .then(function(oldConnection) {
+                let newConnection = oldConnection;
+
+                // Make sure the settings object exists
+                if(!newConnection.settings) {
+                    newConnection.settings = {};
+                }
+
+                // Adopt values at top level
+                for(let k in newSettings) {
+                    newConnection.settings[k] = newSettings[k];
+                }
+
+                // Update the Mongo document
+                MongoHelper.updateOne(
+                    ProjectHelper.currentProject,
+                    'connections',
+                    {
+                        id: id
+                    },
+                    newConnection
+                )
+                .then(callback);
+            });
+        });
+    }
+
+    /**
+     * Sets a connection by id
+     *
+     * @param {string} id
+     * @param {Object} content
+     *
+     * @return {Promise} promise
+     */
+    static setConnectionById(id, content) {
+        let collection = ProjectHelper.currentEnvironment + '.connections';
+        
+        return MongoHelper.updateOne(
+            ProjectHelper.currentProject,
+            collection,
+            {
+                id: id
+            },
+            content
+        );
+    }
+    
+    /**
+     * Creates a new connection
+     *
+     * @return {Promise} promise
+     */
+    static createConnection() {
+        let connection = Connection.create();
+        let collection = ProjectHelper.currentEnvironment + '.connections';
+
+        return MongoHelper.insertOne(
+            ProjectHelper.currentProject,
+            collection,
+            connection.getFields()
+        );
+    }    
+}
+
+module.exports = ConnectionHelper;
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="ApiController.html">ApiController</a></li><li><a href="ArrayEditor.html">ArrayEditor</a></li><li><a href="BooleanEditor.html">BooleanEditor</a></li><li><a href="Connection.html">Connection</a></li><li><a href="ConnectionController.html">ConnectionController</a></li><li><a href="Content.html">Content</a></li><li><a href="ContentController.html">ContentController</a></li><li><a href="ContentReferenceEditor.html">ContentReferenceEditor</a></li><li><a href="ContentSchema.html">ContentSchema</a></li><li><a href="ContentSchemaReferenceEditor.html">ContentSchemaReferenceEditor</a></li><li><a href="Controller.html">Controller</a></li><li><a href="DateEditor.html">DateEditor</a></li><li><a href="DropdownEditor.html">DropdownEditor</a></li><li><a href="Entity.html">Entity</a></li><li><a href="FieldSchema.html">FieldSchema</a></li><li><a href="Form.html">Form</a></li><li><a href="FormEditor.html">FormEditor</a></li><li><a href="JSONEditor.html">JSONEditor</a></li><li><a href="LanguageEditor.html">LanguageEditor</a></li><li><a href="LanguageSettings.html">LanguageSettings</a></li><li><a href="Media.html">Media</a></li><li><a href="MediaReferenceEditor.html">MediaReferenceEditor</a></li><li><a href="MessageModal.html">MessageModal</a></li><li><a href="NavbarMain.html">NavbarMain</a></li><li><a href="PeriodEditor.html">PeriodEditor</a></li><li><a href="ProjectHelper.html">ProjectHelper</a></li><li><a href="RichTextEditor.html">RichTextEditor</a></li><li><a href="Schema.html">Schema</a></li><li><a href="SchemaController.html">SchemaController</a></li><li><a href="SchemaEditor.html">SchemaEditor</a></li><li><a href="SchemaHelper.html">SchemaHelper</a></li><li><a href="StringEditor.html">StringEditor</a></li><li><a href="StructEditor.html">StructEditor</a></li><li><a href="TemplateReferenceEditor.html">TemplateReferenceEditor</a></li><li><a href="UrlEditor.html">UrlEditor</a></li><li><a href="UserHelper.html">UserHelper</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.0</a> on Mon Sep 05 2016 13:07:42 GMT+0200 (CEST)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

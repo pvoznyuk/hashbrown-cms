@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: server/controllers/ApiController.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: server/controllers/ApiController.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>'use strict';
+
+// Libs
+let pathToRegexp = require('path-to-regexp');
+
+// Classes
+let Controller = require('./Controller');
+
+/**
+ * The main API controller
+ */
+class ApiController extends Controller {
+    /**
+     * Authenticates an API call
+     *
+     * @param {String} token
+     * @param {String} scope
+     */
+    static authenticate(token, scope) {
+        return new Promise((resolve, reject) => {
+            if(!token) {
+                reject(new Error('No token was provided'));
+
+            } else {
+                UserHelper.findToken(token)
+                .then((user) => {
+                    if(user) {
+                        // Set the currently authenticated user as a static variable
+                        UserHelper.current = user;
+
+                        // If a scope is defined, check for it
+                        if(scope) {
+                            if(user.hasScope(ProjectHelper.currentProject, scope)) {
+                                resolve(user);
+                    
+                            } else {
+                                reject(new Error('User "' + user.username + '" with token "' + token + '" doesn\'t have scope "' + scope + '"'));
+
+                            }
+                       
+                        // If no scope is required, return as normal 
+                        } else {
+                            resolve(user);
+
+                        }
+
+                    } else {
+                        reject(new Error('Found no user with token "' + token + '"'));
+                    }
+                })
+                .catch(reject);
+            }
+        });
+    }
+
+    /**
+     * Sets project variables
+     * 
+     * @param {String} url
+     */
+    static setProjectVariables(url) {
+        return new Promise((resolve, reject) => {
+            let keys = [];
+            let re = pathToRegexp('/:root/:project/:environment/*', keys);
+            let values = re.exec(url);
+            let project;
+            let environment;
+
+            if(values) {
+                // The first array item is the entire url, so remove it
+                values.shift();
+
+                for(let i in keys) {
+                    let key = keys[i];
+
+                    switch(key.name) {
+                        case 'project':
+                            project = values[i];
+                            break;
+
+                        case 'environment':
+                            environment = values[i];
+                            break;
+                    }
+                }
+            }
+
+            // We have both project and environment, we'll set them as current
+            if(project &amp;&amp; environment) {
+                ProjectHelper.setCurrent(project, environment)
+                .then(resolve)
+                .catch(reject);
+            
+            // The parameters weren't provided, so just move on
+            } else {
+                resolve();
+
+            }
+        });
+    }
+        
+    /**
+     * Middleware
+     *
+     * @param {Object} settings
+     */
+    static middleware(settings) {
+        settings = settings || {};
+
+        return function middleware(req, res, next) {
+            // Allow CORS if specified
+            if(settings.allowCORS == true) {
+                res.header('Access-Control-Allow-Origin', '*');
+                res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+            
+                debug.log('Allowing CORS for API call "' + req.originalUrl + '"', this);
+            }
+
+            // Using project parameter
+            if(settings.setProject != false) {
+                // Set the project variables
+                ApiController.setProjectVariables(req.originalUrl)
+                .then(() => {
+                    // Using authentication
+                    if(settings.authenticate != false) {
+                        ApiController.authenticate(req.cookies.token, settings.scope)
+                        .then(() => {
+                            next();
+                        })
+                        .catch((e) => {
+                            res.status(403).send(e.message);   
+                            debug.log(e.message, ApiController);
+                        });    
+                    
+                    // No authentication needed
+                    } else {
+                        next();
+                    }
+                })
+                .catch((e) => {
+                    res.status(400).send(e.message);
+                    debug.log(e.message, ApiController);
+                });
+            
+            // Disregarding project parameter, but using authentication
+            } else if(settings.authenticate != false) {
+                ApiController.authenticate(req.cookies.token, settings.scope)
+                .then(() => {
+                    next();
+                })
+                .catch((e) => {
+                    res.status(403).send(e.message);   
+                    debug.log(e.message, ApiController);
+                });    
+
+            // Neither project parameter not authentication needed
+            } else {
+                next();
+            
+            }
+        }
+    }
+
+    /**
+     * Error reporting
+     *
+     * @param {Error} error
+     *
+     * @returns {String} Pretty print fo the error message
+     */
+     static error(error) {
+        if(!error) {
+            return 'Unspecified error';
+        }
+
+        return error.stack;
+     }
+}
+
+module.exports = ApiController;
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="ApiController.html">ApiController</a></li><li><a href="ArrayEditor.html">ArrayEditor</a></li><li><a href="BooleanEditor.html">BooleanEditor</a></li><li><a href="Connection.html">Connection</a></li><li><a href="ConnectionController.html">ConnectionController</a></li><li><a href="Content.html">Content</a></li><li><a href="ContentController.html">ContentController</a></li><li><a href="ContentReferenceEditor.html">ContentReferenceEditor</a></li><li><a href="ContentSchema.html">ContentSchema</a></li><li><a href="ContentSchemaReferenceEditor.html">ContentSchemaReferenceEditor</a></li><li><a href="Controller.html">Controller</a></li><li><a href="DateEditor.html">DateEditor</a></li><li><a href="DropdownEditor.html">DropdownEditor</a></li><li><a href="Entity.html">Entity</a></li><li><a href="FieldSchema.html">FieldSchema</a></li><li><a href="Form.html">Form</a></li><li><a href="FormEditor.html">FormEditor</a></li><li><a href="JSONEditor.html">JSONEditor</a></li><li><a href="LanguageEditor.html">LanguageEditor</a></li><li><a href="LanguageSettings.html">LanguageSettings</a></li><li><a href="Media.html">Media</a></li><li><a href="MediaReferenceEditor.html">MediaReferenceEditor</a></li><li><a href="MessageModal.html">MessageModal</a></li><li><a href="NavbarMain.html">NavbarMain</a></li><li><a href="PeriodEditor.html">PeriodEditor</a></li><li><a href="ProjectHelper.html">ProjectHelper</a></li><li><a href="RichTextEditor.html">RichTextEditor</a></li><li><a href="Schema.html">Schema</a></li><li><a href="SchemaController.html">SchemaController</a></li><li><a href="SchemaEditor.html">SchemaEditor</a></li><li><a href="SchemaHelper.html">SchemaHelper</a></li><li><a href="StringEditor.html">StringEditor</a></li><li><a href="StructEditor.html">StructEditor</a></li><li><a href="TemplateReferenceEditor.html">TemplateReferenceEditor</a></li><li><a href="UrlEditor.html">UrlEditor</a></li><li><a href="UserHelper.html">UserHelper</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.0</a> on Mon Sep 05 2016 13:07:42 GMT+0200 (CEST)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

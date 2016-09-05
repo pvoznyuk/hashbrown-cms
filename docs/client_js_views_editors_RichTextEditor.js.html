@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: client/js/views/editors/RichTextEditor.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: client/js/views/editors/RichTextEditor.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>'use strict';
+
+// Lib
+let markdownToHtml = require('marked');
+let htmlToMarkdown = require('to-markdown');
+
+/**
+ * A rich text editor
+ */
+class RichTextEditor extends View {
+    constructor(params) {
+        super(params);
+
+        this.init();
+    }
+
+    /**
+     * Event: Change input
+     */
+    onChange() {
+        this.$output.html(markdownToHtml(this.$textarea.val()));
+
+        this.$output.find('img').each(function() {
+            let id = $(this).attr('alt');
+            let src = '/media/' + ProjectHelper.currentProject + '/' + ProjectHelper.currentEnvironment + '/' + id;
+        
+            $(this).attr('src', src);
+        });
+
+        this.caret = this.getCaretCharacterOffsetWithin(this.$textarea[0]);
+
+        this.trigger('change', this.$textarea.val());
+    }
+
+    /**
+     * Updates the textarea
+     */
+    updateTextArea() {
+        this.$textarea.val(htmlToMarkdown(this.$output.html()));
+
+        this.trigger('change', this.$textarea.val());
+    }
+
+    /**
+     * Event: Click bold
+     */
+    onClickBold() {
+        document.execCommand('bold', false, null);
+
+        this.updateTextArea();
+    }
+    
+    /**
+     * Event: Click italic
+     */
+    onClickItalic() {
+        document.execCommand('italic', false, null);
+
+        this.updateTextArea();
+    }
+    
+    /**
+     * Event: Click header
+     */
+    onClickHeader(num) {
+        document.execCommand('formatBlock', false, '&lt;' + num + '>');
+
+        this.updateTextArea();
+    }
+
+    /**
+     * Event: Click insert media
+     */
+    onClickInsertMedia() {
+        let editor = this;
+
+        /** 
+         * Event: Click OK
+         */
+        function onClickOK() {
+            let id = $modal.find('.thumbnail.active').attr('data-id');
+            
+            MediaHelper.getMediaById(id)
+            .then((media) => {
+                editor.$textarea.val(editor.$textarea.val() + '\n' + '![' + media.id + '](' + media.url + ')');
+
+                editor.onChange();
+                $modal.modal('hide');
+            })
+            .catch(errorModal);
+        }
+
+        // Render the modal
+        let $modal = _.div({class: 'modal fade media-modal'},
+            _.div({class: 'modal-dialog'},
+                _.div({class: 'modal-content'}, [
+                    _.div({class: 'modal-header'},
+                        _.input({class: 'form-control', placeholder: 'Search media'})
+                    ),
+                    _.div({class: 'modal-body'},
+                        _.div({class: 'thumbnail-container'},
+                            _.each(resources.media, function(i, media) {
+                                function onClick() {
+                                    $modal.find('.thumbnail').toggleClass('active', false);
+                                    $(this).toggleClass('active', true);
+                                }
+                                
+                                return _.button(
+                                    {
+                                        class: 'thumbnail raised',
+                                        'data-id': media.id,
+                                        style: 'background-image: url(\'/media/' + ProjectHelper.currentProject + '/' + ProjectHelper.currentEnvironment + '/' + media.id + '\')'
+                                    },
+                                    _.label(media.name)  
+                                ).click(onClick);
+                            })
+                        )
+                    ),
+                    _.div({class: 'modal-footer'},
+                        _.button({class: 'btn btn-primary'},
+                            'OK'
+                        ).click(onClickOK)
+                    )
+                ])
+            )
+        );
+
+        // Make sure the modal is removed when it's cancelled
+        $modal.on('hidden.bs.modal', function() {
+           $modal.remove(); 
+        });
+
+        // Show the modal
+        $modal.modal('show');
+    }
+
+    /**
+     * Gets the caret offset within an element
+     *
+     * @param {HTMLElement} element
+     *
+     * @returns {Number} offset
+     */
+    getCaretCharacterOffsetWithin(element) {
+        var pos = 0;
+        if('selectionStart' in element) {
+            pos = element.selectionStart;
+        } else if('selection' in document) {
+            element.focus();
+            var Sel = document.selection.createRange();
+            var SelLength = document.selection.createRange().text.length;
+            Sel.moveStart('character', -element.value.length);
+            pos = Sel.text.length - SelLength;
+        }
+        return pos;
+    }
+
+    /**
+     * Sets the selection range in an input
+     *
+     * @param {HTMLElement} input
+     * @param {Number} selectionStart
+     * @param {Number} selectionEnd
+     */
+    setSelectionRange(input, selectionStart, selectionEnd) {
+        input.focus();
+
+        if(input.setSelectionRange) {
+            input.setSelectionRange(selectionStart, selectionEnd);
+        
+        } else if (input.createTextRange) {
+            var range = input.createTextRange();
+            range.collapse(true);
+            range.moveEnd('character', selectionEnd);
+            range.moveStart('character', selectionStart);
+            range.select();
+        
+        }
+    }
+
+    /**
+     * Sets the caret position in an input
+     *
+     * @param {HTMLElement} input
+     * @param {Number} pos
+     */
+    setCaretToPos(input, pos) {
+        this.setSelectionRange(input, pos, pos);
+    }
+
+    render() {
+        var editor = this;
+
+        // Main element
+        this.$element = _.div({class: 'field-editor rich-text-editor panel panel-default'}, [
+            // Toolbar
+            _.div({class: 'panel-heading'}, 
+                _.div({class: 'dropdown'},
+                    _.button({class: 'btn btn-primary dropdown-toggle', 'data-toggle': 'dropdown'},
+                        _.span({class: 'fa fa-header'})
+                    ),
+                    _.ul({class: 'dropdown-menu'},
+                        _.each([1, 2, 3, 4, 5, 6], (i, num) => {
+                            return _.li(
+                                _.a({href: '#'},
+                                    'H' + num
+                                ).click(function(e) {
+                                    e.preventDefault();
+                                        
+                                    editor.onClickHeader(num);
+                                })
+                            );
+                        })
+                    )
+                ),
+                _.button({class: 'btn btn-primary'}, 
+                    _.span({class: 'fa fa-bold'})
+                ).click(() => { this.onClickBold(); }),
+                _.button({class: 'btn btn-primary'}, 
+                    _.span({class: 'fa fa-italic'})
+                ).click(() => { this.onClickItalic(); }),
+                _.button({class: 'btn btn-primary'}, 
+                    _.span({class: 'fa fa-file-image-o'})
+                ).click(() => { this.onClickInsertMedia(); })
+            ),
+
+            // HTML output 
+            _.div({class: 'panel-body'},
+                this.$output = _.div({class: 'rte-output', contenteditable: true})
+                    .on('change propertychange keyup paste', function() {
+                        editor.updateTextArea();
+                    })
+            ),
+
+            // Markdown editor
+            _.div({class: 'panel-footer'},
+                this.$textarea = _.textarea({class: 'form-control', type: 'text'}, 
+                    this.value
+                ).on('change propertychange keyup paste', function() {
+                    editor.onChange();
+                })
+            )
+        ]);
+
+        // Initial call to render markdown as HTML
+        this.$output.html(markdownToHtml(this.$textarea.val()));
+
+        this.onChange();
+    }
+}
+
+module.exports = RichTextEditor;
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="ApiController.html">ApiController</a></li><li><a href="ArrayEditor.html">ArrayEditor</a></li><li><a href="BooleanEditor.html">BooleanEditor</a></li><li><a href="Connection.html">Connection</a></li><li><a href="ConnectionController.html">ConnectionController</a></li><li><a href="Content.html">Content</a></li><li><a href="ContentController.html">ContentController</a></li><li><a href="ContentReferenceEditor.html">ContentReferenceEditor</a></li><li><a href="ContentSchema.html">ContentSchema</a></li><li><a href="ContentSchemaReferenceEditor.html">ContentSchemaReferenceEditor</a></li><li><a href="Controller.html">Controller</a></li><li><a href="DateEditor.html">DateEditor</a></li><li><a href="DropdownEditor.html">DropdownEditor</a></li><li><a href="Entity.html">Entity</a></li><li><a href="FieldSchema.html">FieldSchema</a></li><li><a href="Form.html">Form</a></li><li><a href="FormEditor.html">FormEditor</a></li><li><a href="JSONEditor.html">JSONEditor</a></li><li><a href="LanguageEditor.html">LanguageEditor</a></li><li><a href="LanguageSettings.html">LanguageSettings</a></li><li><a href="Media.html">Media</a></li><li><a href="MediaReferenceEditor.html">MediaReferenceEditor</a></li><li><a href="MessageModal.html">MessageModal</a></li><li><a href="NavbarMain.html">NavbarMain</a></li><li><a href="PeriodEditor.html">PeriodEditor</a></li><li><a href="ProjectHelper.html">ProjectHelper</a></li><li><a href="RichTextEditor.html">RichTextEditor</a></li><li><a href="Schema.html">Schema</a></li><li><a href="SchemaController.html">SchemaController</a></li><li><a href="SchemaEditor.html">SchemaEditor</a></li><li><a href="SchemaHelper.html">SchemaHelper</a></li><li><a href="StringEditor.html">StringEditor</a></li><li><a href="StructEditor.html">StructEditor</a></li><li><a href="TemplateReferenceEditor.html">TemplateReferenceEditor</a></li><li><a href="UrlEditor.html">UrlEditor</a></li><li><a href="UserHelper.html">UserHelper</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.0</a> on Mon Sep 05 2016 13:07:42 GMT+0200 (CEST)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>
