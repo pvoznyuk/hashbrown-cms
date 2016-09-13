@@ -56,6 +56,8 @@ section {
 
     &.rich-text-section {
         .container {
+            max-width: 600px;
+
             img {
                 max-width: 100%;
             }
@@ -77,7 +79,7 @@ section {
             text-align: center;
 
             img {
-                margin: 0em 1em;
+                margin: 2em 1em 0em 1em;
                 line-height: 1em;
                 height: 3em;
             }
