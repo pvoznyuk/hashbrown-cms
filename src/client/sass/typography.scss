@@ -1,15 +1,43 @@
-h1 {
-    font-size: 6em;
-    
+body {
+    font-family: 'Roboto Condensed', Helvetica, Arial, serif;
+    font-size: 1em;
+    line-height: 1.5;
+}
+
+@mixin set-heading-size($size) {
+    font-size: #{$size}em;
+    line-height: 1em;
+    margin-bottom: 0.5em;
+
     @media ($md-h) {
-        font-size: 5em;
+        font-size: #{$size - 1}em;
     }
     
     @media ($sm-h) {
-        font-size: 4em;
+        font-size: #{$size - 2}em;
     }
 
     @media ($xs-h) {
-        font-size: 3em;
+        font-size: #{$size - 3}em;
     }
+}
+
+p {
+    margin-bottom: 1em;
+}
+
+h1 {
+    @include set-heading-size(5);
+}
+
+h2 {
+    @include set-heading-size(3);
+}
+
+h3 {
+    @include set-heading-size(2);
+}
+
+h4 {
+    @include set-heading-size(1.5);
 }

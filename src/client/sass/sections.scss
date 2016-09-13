@@ -1,4 +1,6 @@
 section {
+    margin-bottom: 4em;
+
     &.banner {
         height: 960px;
         display: flex;
@@ -22,7 +24,20 @@ section {
         }
 
         .container {
-            
+            position: relative;
+            padding-right: 20em;
+        
+            @media($md-h) {
+                padding-right: 20em;
+            }
+
+            @media($sm-h) {
+                padding-right: 10em;
+            }
+
+            @media($xs-h) {
+                padding-right: 5em;
+            }
         }
     }
 

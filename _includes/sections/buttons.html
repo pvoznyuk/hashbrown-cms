@@ -1,0 +1,11 @@
+<section class="buttons">
+    <div class="container">
+        {% if include.section.text %}
+            {{ include.section.text | markdownify }}
+        {% endif %}
+
+        {% for button in include.section.buttons %}
+            <a href="{{ button.href }}" target="{{ button.target }}">{{ button.text }}</a>
+        {% endfor %}
+    </div>
+</section>
