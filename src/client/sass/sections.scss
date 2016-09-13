@@ -46,4 +46,14 @@ section {
             max-width: 100%;
         }
     }
+
+    &.buttons {
+        .container {
+            text-align: center;
+
+            .btn {
+                margin: 1em;
+            }
+        }
+    }
 }

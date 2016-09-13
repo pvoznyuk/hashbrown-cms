@@ -111,10 +111,10 @@ h1 {
       font-size: 4em; } }
   @media (max-width: 991px) {
     h1 {
-      font-size: 3em; } }
+      font-size: 3.5em; } }
   @media (max-width: 767px) {
     h1 {
-      font-size: 2em; } }
+      font-size: 3em; } }
 
 h2 {
   font-size: 3em;
@@ -122,13 +122,13 @@ h2 {
   margin-bottom: 0.5em; }
   @media (max-width: 1199px) {
     h2 {
-      font-size: 2em; } }
+      font-size: 2.4em; } }
   @media (max-width: 991px) {
     h2 {
-      font-size: 1em; } }
+      font-size: 2.1em; } }
   @media (max-width: 767px) {
     h2 {
-      font-size: 0em; } }
+      font-size: 1.8em; } }
 
 h3 {
   font-size: 2em;
@@ -136,13 +136,13 @@ h3 {
   margin-bottom: 0.5em; }
   @media (max-width: 1199px) {
     h3 {
-      font-size: 1em; } }
+      font-size: 1.6em; } }
   @media (max-width: 991px) {
     h3 {
-      font-size: 0em; } }
+      font-size: 1.4em; } }
   @media (max-width: 767px) {
     h3 {
-      font-size: -1em; } }
+      font-size: 1.2em; } }
 
 h4 {
   font-size: 1.5em;
@@ -150,13 +150,31 @@ h4 {
   margin-bottom: 0.5em; }
   @media (max-width: 1199px) {
     h4 {
-      font-size: 0.5em; } }
+      font-size: 1.2em; } }
   @media (max-width: 991px) {
     h4 {
-      font-size: -0.5em; } }
+      font-size: 1.05em; } }
   @media (max-width: 767px) {
     h4 {
-      font-size: -1.5em; } }
+      font-size: 0.9em; } }
+
+.btn {
+  background-color: #E70D3B;
+  color: #fff;
+  height: 50px;
+  width: 200px;
+  line-height: 50px;
+  border-radius: 25px;
+  display: inline-block;
+  text-transform: uppercase;
+  font-weight: 700;
+  text-align: center;
+  text-decoration: none;
+  border: 2px solid transparent; }
+  .btn:hover {
+    color: #fff;
+    background-color: #FF345F;
+    border-color: #E70D3B; }
 
 section {
   margin-bottom: 4em; }
@@ -192,6 +210,10 @@ section {
           padding-right: 5em; } }
   section.rich-text-section img {
     max-width: 100%; }
+  section.buttons .container {
+    text-align: center; }
+    section.buttons .container .btn {
+      margin: 1em; }
 
 /*
 a {
