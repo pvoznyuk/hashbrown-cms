@@ -1,3 +1,13 @@
+/**
+ * Retrieves a color value from the $material-colors Sass map
+ * Inspired by https://github.com/nilskaspersson/Google-Material-UI-Color-Palette/
+ *
+ * @function
+ * @param {string} color-name             - quoted, lower-case, dasherized color
+ *                                          name (e.g. 'pink', 'amber')
+ * @param {string} [color-variant='500']  - quoted, lowercase color variant (e.g.
+ *                                          '200', 'a100')
+ */
 @import 'https://fonts.googleapis.com/css?family=Roboto:400,700';
 [role="button"],
 input[type="submit"],
@@ -97,7 +107,8 @@ a, a:hover, a:focus, a:active {
 body {
   font-family: 'Roboto Condensed', Helvetica, Arial, serif;
   font-size: 1em;
-  line-height: 1.5; }
+  line-height: 1.5;
+  color: #424242; }
 
 p {
   margin-bottom: 1em; }
@@ -159,7 +170,7 @@ h4 {
       font-size: 0.9em; } }
 
 .btn {
-  background-color: #E70D3B;
+  background-color: #d81b60;
   color: #fff;
   height: 50px;
   width: 230px;
@@ -173,8 +184,8 @@ h4 {
   border: 2px solid transparent; }
   .btn:hover {
     color: #fff;
-    background-color: #FF345F;
-    border-color: #E70D3B; }
+    background-color: #f06292;
+    border-color: #d81b60; }
 
 section {
   padding: 7em 0em;
@@ -196,7 +207,7 @@ section {
     align-items: center;
     justify-content: center;
     color: #fff;
-    background-position: center;
+    background-position: 60% 50%;
     background-size: cover; }
     @media (max-height: 1199px) {
       section.banner {
@@ -208,16 +219,18 @@ section {
       section.banner {
         height: 375px; } }
     section.banner .container {
+      margin-top: -10em;
       position: relative;
-      padding-right: 20em; }
+      padding-right: 30em; }
       @media (max-width: 1199px) {
         section.banner .container {
-          padding-right: 20em; } }
+          padding-right: 30em; } }
       @media (max-width: 991px) {
         section.banner .container {
-          padding-right: 10em; } }
+          padding-right: 20em; } }
       @media (max-width: 767px) {
         section.banner .container {
+          margin-top: -5em;
           padding-right: 5em; } }
   section.rich-text-section .container {
     max-width: 600px; }

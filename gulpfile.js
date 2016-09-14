@@ -103,7 +103,11 @@ gulp.task('js', function() {
 gulp.task('sass', function() {
     function compile() {
         gulp.src(config.sass.src)
-        .pipe(sass().on('error', mapError))
+        .pipe(sass({
+            includePaths: [
+                './node_modules/sass-material-colors/sass/'
+            ]
+        }).on('error', mapError))
         .pipe(sourcemaps.init({loadMaps: true}))    // Extract the inline sourcemaps
         .pipe(sourcemaps.write('./maps'))           // Set folder for sourcemaps to output to
         .pipe(gulp.dest(config.sass.outputDir))

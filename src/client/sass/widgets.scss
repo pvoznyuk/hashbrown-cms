@@ -1,6 +1,6 @@
 .btn {
-    background-color: $pink-medium;
-    color: $white;
+    background-color: material-color('pink', '600');
+    color: #fff;
     height: 50px;
     width: 230px;
     line-height: 50px;
@@ -13,8 +13,8 @@
     border: 2px solid transparent;
 
     &:hover {
-        color: $white;
-        background-color: $pink-light;
-        border-color: $pink-medium;
+        color: #fff;
+        background-color: material-color('pink', '300');
+        border-color: material-color('pink', '600');
     }
 }

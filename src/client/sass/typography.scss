@@ -2,6 +2,7 @@ body {
     font-family: 'Roboto Condensed', Helvetica, Arial, serif;
     font-size: 1em;
     line-height: 1.5;
+    color: material-color('grey', '800');
 }
 
 @mixin set-heading-size($size) {

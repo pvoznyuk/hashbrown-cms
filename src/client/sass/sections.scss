@@ -21,7 +21,7 @@ section {
         align-items: center;
         justify-content: center;
         color: $white;
-        background-position: center;
+        background-position: 60% 50%;
         background-size: cover;
 
         @media($md-v) {
@@ -37,18 +37,20 @@ section {
         }
 
         .container {
+            margin-top: -10em;
             position: relative;
-            padding-right: 20em;
+            padding-right: 30em;
         
             @media($md-h) {
-                padding-right: 20em;
+                padding-right: 30em;
             }
 
             @media($sm-h) {
-                padding-right: 10em;
+                padding-right: 20em;
             }
 
             @media($xs-h) {
+                margin-top: -5em;
                 padding-right: 5em;
             }
         }
