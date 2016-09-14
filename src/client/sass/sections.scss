@@ -37,7 +37,6 @@ section {
         }
 
         .container {
-            margin-top: -10em;
             position: relative;
             padding-right: 30em;
         
@@ -50,8 +49,23 @@ section {
             }
 
             @media($xs-h) {
-                margin-top: -5em;
                 padding-right: 5em;
+            }
+
+            p:first-of-type {
+                margin-top: 2em;
+
+                @media($md-h) {
+                    margin-top: 4em;
+                }
+                
+                @media($sm-h) {
+                    margin-top: 8em;
+                }
+
+                @media($xs-h) {
+                    margin-top: 5em;
+                }
             }
         }
     }
