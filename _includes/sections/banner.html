@@ -2,7 +2,7 @@
     {% include hashbrown/get_media_by_id id=include.section.image %}
 {% endcapture %}
 
-<section style="{% if background_image %}background-image:url('{{ background_image }}');{% endif %}" class="banner">
+<section style="{% if background_image %}background-image:url('{{ background_image }}');{% endif %}" class="banner {{ include.section.theme }}">
     <div class="container">
         {% if include.section.text %}
             {{ include.section.text | markdownify }}

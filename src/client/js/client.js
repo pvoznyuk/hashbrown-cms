@@ -1,6 +1,21 @@
 let navbar = document.querySelector('nav');
-let banner = document.querySelector('section.banner');
+let allSections = [].slice.call(document.querySelectorAll('section'));
 
-window.addEventListener('scroll', () => {
-    navbar.classList.toggle('darken', document.body.scrollTop > banner.clientHeight);
-});
+function checkScroll() {
+    let isOverLightSection = true;
+    let scrollPos = document.body.scrollTop;
+
+    for(let section of allSections) {
+        // Found section
+        if(scrollPos >= section.offsetTop && scrollPos < section.offsetTop + section.clientHeight) {
+            isOverLightSection = !section.classList.contains('dark');
+            break;
+        }
+    }
+
+    navbar.classList.toggle('darken', isOverLightSection);
+}
+
+window.addEventListener('scroll', checkScroll);
+
+checkScroll();

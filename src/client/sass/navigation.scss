@@ -19,12 +19,18 @@ nav {
     }
 
     ul {
-        float: right;
+        &.navbar-right {
+            float: right;
+
+            li {
+                padding-left: 10px;
+            }
+        }
 
         li {
             display: block;
-            padding: 0px 10px;
             float: left;
+            padding-right: 10px;
 
             a {
                 display: block;
