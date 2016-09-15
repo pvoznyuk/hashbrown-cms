@@ -2,38 +2,51 @@ section {
     padding: 7em 0em;
     position: relative;
    
-    &:after {
+    &:after, &:before {
         position: absolute;
-        bottom: 0px;
         left: 0px;
         content: '';
         display: block;
         width: 100%;
         height: 1px;
-        background-image: radial-gradient(circle, rgba(0, 0, 0, 0.1), rgba(0, 0, 0, 0));
+    }
+    
+    &:after {
+        bottom: 0px;
+        background-image: radial-gradient(circle, rgba(120, 120, 120, 0.2), rgba(120, 120, 120, 0));
+    }
+    
+    &:before {
+        bottom: -1px;
+        background-image: radial-gradient(circle, rgba(255, 255, 255, 0.8) 50%, rgba(255, 255, 255, 0));
     }
 
     &.banner {
         padding: 0em;
-        height: 960px;
+        height: 600px;
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
         color: $white;
-        background-position: 60% 50%;
-        background-size: cover;
+        background-position: 50% 0%;
+        background-size: auto 600px;
+        background-attachment: fixed;
+        box-shadow: 0px 5px 10px 0px rgba(120, 120, 120, 0.2);
 
         @media($md-v) {
-            height: 800px;
+            height: 500px;
+            background-size: auto 500px;
         }
 
         @media($sm-v) {
-            height: 580px;
+            height: 400px;
+            background-size: auto 400px;
         }
 
         @media($xs-v) {
-            height: 375px;
+            height: 300px;
+            background-size: auto 300px;
         }
 
         .container {

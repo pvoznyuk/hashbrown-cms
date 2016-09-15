@@ -1,11 +1,14 @@
 @import 'sass-material-colors';
-@import 'https://fonts.googleapis.com/css?family=Roboto:400,700';
 @import './reset';
 @import './breakpoints';
 @import './colors';
 @import './typography';
 @import './widgets';
 @import './sections';
+
+body {
+    background-image: linear-gradient(90deg, material-color('grey', '300'), material-color('grey', '100') 50%, material-color('grey', '300'));
+}
 
 .container {
     margin-left: auto;

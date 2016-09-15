@@ -11,8 +11,16 @@
     text-align: center;
     text-decoration: none;
     border: 2px solid transparent;
+    box-shadow: 0px 1px 0px rgba(0, 0, 0, 0.3);
+    position: relative;
 
-    &:hover {
+    &:active {
+        top: 1px;
+        box-shadow: none;
+    }
+
+    &:hover, &:focus {
+        outline: 0px;
         color: #fff;
         background-color: material-color('pink', '300');
         border-color: material-color('pink', '600');
