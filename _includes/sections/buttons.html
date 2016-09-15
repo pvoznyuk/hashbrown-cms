@@ -4,8 +4,16 @@
             {{ include.section.text | markdownify }}
         {% endif %}
 
-        {% for button in include.section.buttons %}
-            <a class="btn" href="{{ button.href }}" target="{{ button.target }}">{{ button.text }}</a>
-        {% endfor %}
+        <div class="button-container">
+            {% for button in include.section.buttons %}
+                <a class="btn" href="{{ button.href }}" target="{{ button.target }}">{{ button.text }}</a>
+            {% endfor %}
+        </div>
+        
+        <div class="link-container">
+            {% for link in include.section.links %}
+                <a href="{{ link.href }}" target="{{ link.target }}">{{ link.text }}</a>
+            {% endfor %}
+        </div>
     </div>
 </section>

@@ -45,3 +45,12 @@ h3 {
 h4 {
     @include set-heading-size(1.5);
 }
+
+pre {
+    padding: 1em;
+    font-family: monospace;
+    background-color: material-color('grey', '800');
+    color: material-color('grey', '100');
+    border-radius: 5px;
+    font-size: 11px;
+}

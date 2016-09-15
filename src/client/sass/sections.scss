@@ -54,34 +54,9 @@ section {
 
         .container {
             position: relative;
-            padding-right: 30em;
         
-            @media($md-h) {
-                padding-right: 30em;
-            }
-
-            @media($sm-h) {
-                padding-right: 20em;
-            }
-
-            @media($xs-h) {
-                padding-right: 5em;
-            }
-
-            p:first-of-type {
-                margin-top: 2em;
-
-                @media($md-h) {
-                    margin-top: 4em;
-                }
-                
-                @media($sm-h) {
-                    margin-top: 8em;
-                }
-
-                @media($xs-h) {
-                    margin-top: 5em;
-                }
+            h1, h2, p {
+                max-width: 50%;
             }
         }
     }
@@ -100,8 +75,18 @@ section {
         .container {
             text-align: center;
 
-            .btn {
-                margin: 1em;
+            .button-container {
+                .btn {
+                    margin: 1em;
+                }
+            }
+
+            .link-container {
+                margin-top: 1em;
+
+                a {
+                    margin: 0em 1em;
+                }
             }
         }
     }
