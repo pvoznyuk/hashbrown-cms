@@ -8,7 +8,7 @@ nav {
 
     &.darken {
         ul li a {
-            &, &:hover {
+            & {
                 color: material-color('grey', '700');
             }
             
@@ -38,8 +38,12 @@ nav {
                 line-height: 32px;
                 text-decoration: none;
 
-                &, &:hover {
+                & {
                     color: #fff;
+                }
+
+                &:hover {
+                    color: material-color('pink', '600');
                 }
 
                 &.logo {

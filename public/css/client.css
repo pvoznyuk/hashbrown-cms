@@ -116,6 +116,7 @@ p {
 h1 {
   font-size: 5em;
   line-height: 1em;
+  margin-top: 0.8em;
   margin-bottom: 0.5em; }
   @media (max-width: 1199px) {
     h1 {
@@ -130,6 +131,7 @@ h1 {
 h2 {
   font-size: 3em;
   line-height: 1em;
+  margin-top: 0.8em;
   margin-bottom: 0.5em;
   text-shadow: 1px 1px 0px #fff, 0px 0px 8px #e0e0e0; }
   @media (max-width: 1199px) {
@@ -145,6 +147,7 @@ h2 {
 h3 {
   font-size: 2em;
   line-height: 1em;
+  margin-top: 0.8em;
   margin-bottom: 0.5em; }
   @media (max-width: 1199px) {
     h3 {
@@ -159,6 +162,7 @@ h3 {
 h4 {
   font-size: 1.5em;
   line-height: 1em;
+  margin-top: 0.8em;
   margin-bottom: 0.5em; }
   @media (max-width: 1199px) {
     h4 {
@@ -169,14 +173,6 @@ h4 {
   @media (max-width: 767px) {
     h4 {
       font-size: 0.9em; } }
-
-pre {
-  padding: 1em;
-  font-family: monospace;
-  background-color: #424242;
-  color: #f5f5f5;
-  border-radius: 5px;
-  font-size: 11px; }
 
 .btn {
   background-color: #d81b60;
@@ -202,9 +198,26 @@ pre {
     background-color: #f06292;
     border-color: #d81b60; }
 
+pre {
+  cursor: text;
+  margin: 1em;
+  box-shadow: inset 2px 2px 10px 0px #212121, 1px 1px 0px #fff;
+  padding: 1em;
+  font-family: monospace;
+  background-color: #424242;
+  color: #f5f5f5;
+  border-radius: 5px;
+  font-size: 11px; }
+
 section {
   padding: 7em 0em;
   position: relative; }
+  section ul, section ol {
+    padding-left: 2em; }
+  section ul {
+    list-style-type: disc; }
+  section ol {
+    list-style-type: decimal; }
   section:after, section:before {
     position: absolute;
     left: 0px;
@@ -275,7 +288,7 @@ nav {
   width: 100%;
   z-index: 50;
   padding: 10px 0px; }
-  nav.darken ul li a, nav.darken ul li a:hover {
+  nav.darken ul li a {
     color: #616161; }
   nav.darken ul li a.logo {
     background-image: url("/public/svg/logo-grey.svg"); }
@@ -292,8 +305,10 @@ nav {
       height: 32px;
       line-height: 32px;
       text-decoration: none; }
-      nav ul li a, nav ul li a:hover {
+      nav ul li a {
         color: #fff; }
+      nav ul li a:hover {
+        color: #d81b60; }
       nav ul li a.logo {
         background-image: url("/public/svg/logo-white.svg");
         background-size: 100% 100%;

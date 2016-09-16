@@ -10,6 +10,7 @@ body {
 @mixin set-heading-size($size) {
     font-size: #{$size}em;
     line-height: 1em;
+    margin-top: 0.8em;
     margin-bottom: 0.5em;
 
     @media ($md-h) {
@@ -44,13 +45,4 @@ h3 {
 
 h4 {
     @include set-heading-size(1.5);
-}
-
-pre {
-    padding: 1em;
-    font-family: monospace;
-    background-color: material-color('grey', '800');
-    color: material-color('grey', '100');
-    border-radius: 5px;
-    font-size: 11px;
 }

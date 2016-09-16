@@ -1,7 +1,19 @@
 section {
     padding: 7em 0em;
     position: relative;
-   
+
+    ul, ol {
+        padding-left: 2em;
+    }
+
+    ul {
+        list-style-type: disc;
+    }
+    
+    ol {
+        list-style-type: decimal;
+    }
+
     &:after, &:before {
         position: absolute;
         left: 0px;
