@@ -1,7 +1,7 @@
 <section class="child-links">
     <div class="container">
         {% if include.section.includeGrandchildren %}
-            {% include hashbrown/get_child_ids id=page.meta.id %}
+            {% include hashbrown/get_child_content_ids id=page.meta.id %}
             {% assign child_ids = result %}
 
             {% for child_id in child_ids %}
@@ -9,7 +9,7 @@
                 {% assign child = result %}
 
                 <h2>{{ child.title }}</h2>
-                {% include hashbrown/get_child_ids id=child_id %}
+                {% include hashbrown/get_child_content_ids id=child_id %}
                 {% assign grandchild_ids = result %}
 
                 {% for grandchild_id in grandchild_ids %}
@@ -23,7 +23,7 @@
             {% endfor %}
         
         {% else %}
-            {% include hashbrown/get_child_ids id=page.meta.id %}
+            {% include hashbrown/get_child_content_ids id=page.meta.id %}
             {% assign child_ids = result %}
 
             {% for child_id in child_ids %}
