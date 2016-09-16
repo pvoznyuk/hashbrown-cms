@@ -1,0 +1,39 @@
+<section class="child-links">
+    <div class="container">
+        {% if include.section.includeGrandchildren %}
+            {% include hashbrown/get_child_ids id=page.meta.id %}
+            {% assign child_ids = result %}
+
+            {% for child_id in child_ids %}
+                {% include hashbrown/get_content_by_id id=child_id %}
+                {% assign child = result %}
+
+                <h2>{{ child.title }}</h2>
+                {% include hashbrown/get_child_ids id=child_id %}
+                {% assign grandchild_ids = result %}
+
+                {% for grandchild_id in grandchild_ids %}
+                    {% include hashbrown/get_content_by_id id=grandchild_id %}
+                    {% assign grandchild = result %}
+
+                    <a href="{{ grandchild.url }}">{{ grandchild.title }}</a>
+
+                {% endfor %}
+
+            {% endfor %}
+        
+        {% else %}
+            {% include hashbrown/get_child_ids id=page.meta.id %}
+            {% assign child_ids = result %}
+
+            {% for child_id in child_ids %}
+                {% include hashbrown/get_content_by_id id=child_id %}
+                {% assign child = result %}
+
+                <a href="{{ child.url }}">{{ child.title }}</a>
+
+            {% endfor %}
+        
+        {% endif %}
+    </div>
+</section>
