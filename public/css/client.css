@@ -236,7 +236,7 @@ pre {
         max-width: 100%; }
 
 section {
-  padding: 7em 0em;
+  padding: 4em 0em;
   position: relative; }
   section ul, section ol {
     padding-left: 2em; }
@@ -312,6 +312,10 @@ section {
       margin: 2em 1em 0em 1em;
       line-height: 1em;
       height: 3em; }
+  section.child-links .container {
+    max-width: 600px; }
+    section.child-links .container a {
+      display: block; }
   section .container {
     position: relative; }
 
