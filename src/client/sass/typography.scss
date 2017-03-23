@@ -1,17 +1,33 @@
-@import 'https://fonts.googleapis.com/css?family=Roboto:400,700';
+@font-face {
+    font-family: 'Roboto';
+    font-weight: normal;
+    src: url('/fonts/Roboto/Roboto-Regular.ttf');
+}
+
+@font-face {
+    font-family: 'Roboto';
+    font-weight: bold;
+    src: url('/fonts/Roboto/Roboto-Bold.ttf');
+}
+
+@font-face {
+    font-family: 'RobotoMono';
+    font-weight: normal;
+    src: url('/fonts/Roboto_Mono/RobotoMono-Regular.ttf');
+}
 
 body {
-    font-family: 'Roboto Condensed', Helvetica, Arial, serif;
+    font-family: 'Roboto', Helvetica, Arial, serif;
     font-size: 1em;
     line-height: 1.5;
-    color: material-color('grey', '800');
+    color: $standard-text;
 }
 
 @mixin set-heading-size($size) {
     font-size: #{$size}em;
-    line-height: 1em;
-    margin-top: 0.8em;
-    margin-bottom: 0.5em;
+    line-height: 1;
+    margin-top: 0.6em;
+    margin-bottom: 0.4em;
 
     @media ($md-h) {
         font-size: #{$size * 0.8}em;
@@ -36,7 +52,6 @@ h1 {
 
 h2 {
     @include set-heading-size(3);
-    text-shadow: 1px 1px 0px #fff, 0px 0px 8px material-color('grey', '300');
 }
 
 h3 {

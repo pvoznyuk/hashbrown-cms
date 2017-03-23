@@ -5,51 +5,55 @@ nav {
     width: 100%;
     z-index: 50;
     padding: 10px 0px;
-
-    &.darken {
-        ul li a {
-            & {
-                color: material-color('grey', '700');
-            }
-           
-            &.logo {
-                background-image: url('/public/svg/logo-grey.svg');
-            }
-        }
-    }
+    background-color: $secondary;
+    color: $secondary-text;
 
     ul {
-        &.navbar-right {
-            float: right;
-
-            li {
-                padding-left: 10px;
-            }
-        }
+        display: flex;
+        flex-wrap: wrap;
 
         li {
             display: block;
-            float: left;
             padding-right: 10px;
+            
+            @media($xs-h) {
+                padding: 0px;
+                text-align: center;
+                flex-grow: 1;
+            }
 
+            &.logo {
+                flex-grow: 1;
+
+                @media($xs-h) {
+                    width: 100%;
+                    flex-basis: 100%;
+                }
+
+                a {
+                    display: block;
+                    background-image: url('/public/svg/logo-pink.svg');
+                    background-size: 100% 100%;
+                    width: 32px;
+                    
+                    @media($xs-h) {
+                        margin: 0px auto;
+                    }
+                }
+            }
+            
             a {
-                display: block;
                 height: 32px;
                 line-height: 32px;
                 text-decoration: none;
+                color: $secondary-text;
 
-                &, &:hover {
-                    color: #fff;
+                &:hover {
+                    color: $primary;
                 }
 
                 &:hover {
                     text-decoration: underline;
-                }
-
-                &.logo {
-                    background-image: url('/public/svg/logo-white.svg');
-                    background-size: 100% 100%;
-                    width: 32px;
                 }
             }
         }
