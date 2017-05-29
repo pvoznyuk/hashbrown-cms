@@ -100,6 +100,26 @@ class FormEditor extends View {
 
         this.render();
     }
+    
+    /**
+     * Renders the allowed origin editor
+     *
+     * @return {Object} element
+     */
+    renderAllowedOriginEditor() {
+        let view = this;
+
+        function onInputChange() {
+            view.model.allowedOrigin = $(this).val();
+        }
+
+        let $element = _.div({class: 'allowed-origin-editor'},
+            _.input({class: 'form-control', type: 'text', value: view.model.allowedOrigin, placeholder: 'Type the allowed origin URL here'})
+                .on('change', onInputChange)
+        );
+
+        return $element;
+    }
 
     /**
      * Renders the title editor
@@ -119,6 +139,39 @@ class FormEditor extends View {
         );
 
         return $element;
+    }
+    
+    /**
+     * Renders the redirect editor
+     *
+     * @return {Object} element
+     */
+    renderRedirectEditor() {
+        let view = this;
+
+        function onInputChange() {
+            view.model.redirect = $(this).val();
+        }
+
+        let $element = _.div({class: 'redirect-editor'},
+            _.input({class: 'form-control', type: 'text', value: view.model.redirect, placeholder: 'Type the redirect URL here'})
+                .on('change', onInputChange)
+        );
+
+        return $element;
+    }
+
+    /**
+     * Renders the redirect append editor
+     *
+     * @return {HTMLElement} Element
+     */
+    renderAppendRedirectEditor() {
+        return _.div({class: 'append-redirect-editor'},
+            UI.inputSwitch(this.model.appendRedirect, (isActive) => {
+                this.model.appendRedirect = isActive;
+            })
+        );
     }
 
     /**
@@ -157,8 +210,13 @@ class FormEditor extends View {
                 let view = this;
                 let $input = _.div({class: 'input raised'});
                 
-                function onChange() {
-                    if(this.dataset.key == 'name') {
+                function onChange(inputKey, inputValue) {
+                    let useDirectValue = !(this &amp;&amp; this.dataset);
+                    inputKey = useDirectValue ? inputKey : this.dataset.key;
+
+                    if(inputKey == 'name') {
+                        input = view.model.inputs[key];
+
                         delete view.model.inputs[key];
 
                         key = $(this).val();
@@ -166,29 +224,36 @@ class FormEditor extends View {
                         view.model.inputs[key] = input;
                         
                         render();
+
                         let $newPreview = view.renderPreview();
                         view.$preview.replaceWith($newPreview);
                         view.$preview = $newPreview;
 
                     } else {
-                        if(this.dataset.key == 'required') {
-                            input.required = this.checked;
-                        } else if(this.dataset.key == 'options') {
-                            input.options = $(this).val().replace(/, /g, ',').split(',');
+                        if(inputKey == 'required') {
+                            input.required = useDirectValue ? inputValue : this.checked;
+
+                        } else if(inputKey == 'checkDuplicates') {
+                            input.checkDuplicates = useDirectValue ? inputValue : this.checked;
+
+                        } else if(inputKey == 'options') {
+                            input.options = (useDirectValue ? inputValue : $(this).val()).replace(/, /g, ',').split(',');
+
                         } else {
-                            input[this.dataset.key] = $(this).val();
+                            input[inputKey] = useDirectValue ? inputValue : $(this).val();
+
                         }
 
                         render();
+                        
                         let $newPreview = view.renderPreview();
+                        
                         view.$preview.replaceWith($newPreview);
                         view.$preview = $newPreview;
                     }
                 };
 
                 function render() {
-                    let switchId = 'switch-' + key;
-
                     _.append($input.empty(),
                         _.button({class: 'btn btn-embedded btn-remove'},
                             _.span({class: 'fa fa-remove'})
@@ -215,15 +280,19 @@ class FormEditor extends View {
                         ),
                         view.renderField(
                             'Required',
-                            _.div({class: 'switch'},
-                                _.input({'data-key': 'required', id: switchId, class: 'form-control switch', type: 'checkbox', checked: input.required == true})
-                                .on('change', onChange),
-                                _.label({for: switchId})
-                            )
+                            UI.inputSwitch(input.required == true, (newValue) => {
+                                onChange('required', newValue);
+                            })
+                        ),
+                        view.renderField(
+                            'Check duplicates',
+                            UI.inputSwitch(input.checkDuplicates == true, (newValue) => {
+                                onChange('checkDuplicates', newValue);
+                            })
                         ),
                         view.renderField(
                             'Pattern',
-                            _.input({class: 'form-control', 'data-key': 'pattern', type: 'text', value: input.pattern, placeholder: 'Type a RegEx pattern here'})
+                            _.input({class: 'form-control', 'data-key': 'pattern', type: 'text', value: input.pattern || '', placeholder: 'Type a RegEx pattern here'})
                                 .on('change', onChange)
                         )
                     );
@@ -233,7 +302,7 @@ class FormEditor extends View {
 
                 return $input;
             }),
-            _.button({class: 'btn btn-primary btn-round'}, _.span({class: 'fa fa-plus'}))
+            _.button({class: 'btn btn-primary btn-add-input btn-round'}, '+')
                 .on('click', () => { this.onClickAddInput(); })
         );
 
@@ -270,27 +339,58 @@ class FormEditor extends View {
      * @return {Object} element
      */
     renderEntries() {
-        let view = this;
-        
-        function onClick() {
-            messageModal(
-                'Entries',
-                _.div({class: 'form-entries-list'},
-                    _.each(view.model.entries.reverse(), (i, entry) => {
-                        return _.div({class: 'entry'},
-                            _.each(entry, (key, value) => {
-                                return _.div({class: 'kvp'},
-                                    _.div({class: 'key'}, key),
-                                    _.div({class: 'value'}, value)
-                                );
-                            })
-                        );
-                    })  
-                )
-            ).$element.addClass('large');
-        }
+        return _.button({class: 'btn btn-primary'}, 'View entries').click(() => {
+            let modal = new MessageModal({
+                model: {
+                    title: 'Entries',
+                    body: _.table({},
+                        _.each(this.model.entries.reverse(), (i, entry) => {
+                            return _.tbody({class: 'entry'},
+                                _.each(entry, (key, value) => {
+                                    return _.tr({class: 'kvp'},
+                                        _.td({class: 'key'}, key),
+                                        _.td({class: 'value'}, value)
+                                    );
+                                })
+                            );
+                        })  
+                    )
+                },
+                buttons: [
+                    {
+                        class: 'btn-danger pull-left',
+                        label: 'Clear',
+                        callback: () => {
+                            UI.confirmModal('Clear', 'Clear "' + this.model.title + '"', 'Are you sure you want to clear all entries?', () => {
+                                apiCall('post', 'forms/clear/' + this.model.id)
+                                .then(() => {
+                                    this.model.entries = [];
+                                    modal.hide();
+                                })
+                                .catch(UI.errorModal);
+                            });
+                            
+                            return false;
+                        }
+                    },
+                    {
+                        class: 'btn-primary',
+                        label: 'Get .csv',
+                        callback: () => {
+                            location = apiUrl('forms/' + this.model.id + '/entries');
 
-        return _.button({class: 'btn btn-primary'}, 'View entries').click(onClick);
+                            return false;
+                        }
+                    },
+                    {
+                        class: 'btn-default',
+                        label: 'OK'
+                    }
+                ]
+            });
+
+            modal.$element.addClass('form-entries-list-modal');
+        });
     }
 
     /**
@@ -318,7 +418,7 @@ class FormEditor extends View {
     renderFields() {
         let id = parseInt(this.model.id);
 
-        let $element = _.div({class: 'form'});
+        let $element = _.div({class: 'form editor-body'});
         let postUrl = location.protocol + '//' + location.hostname + '/api/' + ProjectHelper.currentProject + '/' + ProjectHelper.currentEnvironment + '/forms/' + this.model.id + '/submit';
         
         // Content type
@@ -340,6 +440,9 @@ class FormEditor extends View {
             )
         ));
         $element.append(this.renderField('Title', this.renderTitleEditor())); 
+        $element.append(this.renderField('Allowed origin', this.renderAllowedOriginEditor())); 
+        $element.append(this.renderField('Redirect URL', this.renderRedirectEditor())); 
+        $element.append(this.renderField('Redirect URL is appended', this.renderAppendRedirectEditor())); 
         $element.append(this.renderField('Inputs', this.renderInputsEditor())); 
         $element.append(this.renderField('Test', this.$preview));
 
@@ -347,18 +450,21 @@ class FormEditor extends View {
     }
 
     render() {
+        this.$element.toggleClass('locked', this.model.locked);
+
         _.append(this.$element.empty(),
+            _.div({class: 'editor-header'},
+                _.span({class: 'fa fa-wpforms'}),
+                _.h4(this.model.title)
+            ),
             this.renderFields(),
-            _.div({class: 'panel panel-default panel-buttons'}, 
+            _.div({class: 'editor-footer'}, 
                 _.div({class: 'btn-group'},
                     _.button({class: 'btn btn-embedded'},
                         'Advanced'
                     ).click(() => { this.onClickAdvanced(); }),
                     _.if(!this.model.locked,
-                        _.button({class: 'btn btn-danger btn-raised'},
-                            'Delete'
-                        ).click(() => { this.onClickDelete(); }),
-                        this.$saveBtn = _.button({class: 'btn btn-success btn-raised btn-save'},
+                        this.$saveBtn = _.button({class: 'btn btn-primary btn-raised btn-save'},
                             _.span({class: 'text-default'}, 'Save '),
                             _.span({class: 'text-working'}, 'Saving ')
                         ).click(() => { this.onClickSave(); })
@@ -380,13 +486,13 @@ module.exports = FormEditor;
 </div>
 
 <nav>
-    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="ApiController.html">ApiController</a></li><li><a href="ArrayEditor.html">ArrayEditor</a></li><li><a href="BooleanEditor.html">BooleanEditor</a></li><li><a href="Connection.html">Connection</a></li><li><a href="ConnectionController.html">ConnectionController</a></li><li><a href="Content.html">Content</a></li><li><a href="ContentController.html">ContentController</a></li><li><a href="ContentReferenceEditor.html">ContentReferenceEditor</a></li><li><a href="ContentSchema.html">ContentSchema</a></li><li><a href="ContentSchemaReferenceEditor.html">ContentSchemaReferenceEditor</a></li><li><a href="Controller.html">Controller</a></li><li><a href="DateEditor.html">DateEditor</a></li><li><a href="DropdownEditor.html">DropdownEditor</a></li><li><a href="Entity.html">Entity</a></li><li><a href="FieldSchema.html">FieldSchema</a></li><li><a href="Form.html">Form</a></li><li><a href="FormEditor.html">FormEditor</a></li><li><a href="JSONEditor.html">JSONEditor</a></li><li><a href="LanguageEditor.html">LanguageEditor</a></li><li><a href="LanguageSettings.html">LanguageSettings</a></li><li><a href="Media.html">Media</a></li><li><a href="MediaReferenceEditor.html">MediaReferenceEditor</a></li><li><a href="MessageModal.html">MessageModal</a></li><li><a href="NavbarMain.html">NavbarMain</a></li><li><a href="PeriodEditor.html">PeriodEditor</a></li><li><a href="ProjectHelper.html">ProjectHelper</a></li><li><a href="RichTextEditor.html">RichTextEditor</a></li><li><a href="Schema.html">Schema</a></li><li><a href="SchemaController.html">SchemaController</a></li><li><a href="SchemaEditor.html">SchemaEditor</a></li><li><a href="SchemaHelper.html">SchemaHelper</a></li><li><a href="StringEditor.html">StringEditor</a></li><li><a href="StructEditor.html">StructEditor</a></li><li><a href="TemplateReferenceEditor.html">TemplateReferenceEditor</a></li><li><a href="UrlEditor.html">UrlEditor</a></li><li><a href="UserHelper.html">UserHelper</a></li></ul>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="ApiController.html">ApiController</a></li><li><a href="AppHelper.html">AppHelper</a></li><li><a href="BackupHelper.html">BackupHelper</a></li><li><a href="BooleanEditor.html">BooleanEditor</a></li><li><a href="Connection.html">Connection</a></li><li><a href="ConnectionController.html">ConnectionController</a></li><li><a href="Content.html">Content</a></li><li><a href="ContentController.html">ContentController</a></li><li><a href="ContentReferenceEditor.html">ContentReferenceEditor</a></li><li><a href="ContentSchema.html">ContentSchema</a></li><li><a href="ContentSchemaReferenceEditor.html">ContentSchemaReferenceEditor</a></li><li><a href="Controller.html">Controller</a></li><li><a href="DateEditor.html">DateEditor</a></li><li><a href="DropdownEditor.html">DropdownEditor</a></li><li><a href="Entity.html">Entity</a></li><li><a href="FieldSchema.html">FieldSchema</a></li><li><a href="Form.html">Form</a></li><li><a href="FormEditor.html">FormEditor</a></li><li><a href="FormHelper.html">FormHelper</a></li><li><a href="InfoEditor.html">InfoEditor</a></li><li><a href="JSONEditor.html">JSONEditor</a></li><li><a href="LanguageEditor.html">LanguageEditor</a></li><li><a href="Media.html">Media</a></li><li><a href="MediaReferenceEditor.html">MediaReferenceEditor</a></li><li><a href="MessageModal.html">MessageModal</a></li><li><a href="MongoHelper.html">MongoHelper</a></li><li><a href="NavbarMain.html">NavbarMain</a></li><li><a href="NumberEditor.html">NumberEditor</a></li><li><a href="ProjectEditor.html">ProjectEditor</a></li><li><a href="ProjectHelper.html">ProjectHelper</a></li><li><a href="ProvidersSettings.html">ProvidersSettings</a></li><li><a href="RequestHelper.html">RequestHelper</a></li><li><a href="ResourceReferenceEditor.html">ResourceReferenceEditor</a></li><li><a href="RichTextEditor.html">RichTextEditor</a></li><li><a href="ScheduleController.html">ScheduleController</a></li><li><a href="ScheduleHelper.html">ScheduleHelper</a></li><li><a href="Schema.html">Schema</a></li><li><a href="SchemaController.html">SchemaController</a></li><li><a href="SchemaEditor.html">SchemaEditor</a></li><li><a href="SchemaHelper.html">SchemaHelper</a></li><li><a href="StringEditor.html">StringEditor</a></li><li><a href="StructEditor.html">StructEditor</a></li><li><a href="SyncEditor.html">SyncEditor</a></li><li><a href="SyncHelper.html">SyncHelper</a></li><li><a href="TagsEditor.html">TagsEditor</a></li><li><a href="Task.html">Task</a></li><li><a href="Template.html">Template</a></li><li><a href="TemplateEditor.html">TemplateEditor</a></li><li><a href="TemplateReferenceEditor.html">TemplateReferenceEditor</a></li><li><a href="UpdateHelper.html">UpdateHelper</a></li><li><a href="UrlEditor.html">UrlEditor</a></li><li><a href="UserHelper.html">UserHelper</a></li></ul>
 </nav>
 
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.0</a> on Mon Sep 05 2016 13:07:42 GMT+0200 (CEST)
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.3</a> on Mon May 29 2017 21:20:48 GMT+0200 (CEST)
 </footer>
 
 <script> prettyPrint(); </script>

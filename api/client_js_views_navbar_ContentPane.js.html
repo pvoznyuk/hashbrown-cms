@@ -28,70 +28,123 @@
         <article>
             <pre class="prettyprint source linenums"><code>'use strict';
 
-let Pane = require('./Pane');
-
-class ContentPane extends Pane {
+class ContentPane extends NavbarPane {
     /**
-     * Event: Click copy content
+     * Event: Change parent
      */
-    static onClickCopyContent() {
-        let navbar = ViewHelper.get('NavbarMain');
-        let id = $('.context-menu-target-element').data('id');
-
-        // This function should only exist if an item has been copied
-        this.onClickPasteContent = function onClickPasteContent() {
-            let parentId = $('.context-menu-target-element').data('id');
-           
-            apiCall('get', 'content/' + id)
-            .then((copiedContent) => {
-                delete copiedContent['id'];
-
-                copiedContent.parentId = parentId;
-                
-                apiCall('post', 'content/new', copiedContent)
-                .then(() => {
-                    reloadResource('content')
-                    .then(function() {
-                        navbar.reload();
-                    });
-
-                    navbar.onClickPasteContent = null;
-                })
-                .catch(navbar.onError);
-            })
-            .catch(navbar.onError);
+    static onChangeDirectory(id, parentId) {
+        if(parentId == '/') {
+            parentId = '';
         }
+
+        // Get the Content model
+        ContentHelper.getContentById(id)
+
+        // API call to apply changes to Content parent
+        .then((content) => {
+            content.parentId = parentId;
+         
+            return apiCall('post', 'content/' + id, content);
+        })
+
+        // Reload all Content models
+        .then(() => {
+            return reloadResource('content');
+        })
+
+        // Reload UI
+        .then(() => {
+            ViewHelper.get('NavbarMain').reload();
+        })
+        .catch(UI.errorModal);
     }
 
     /**
-     * Event: Click cut content
+     * Event: Change sort index
      */
-    static onClickCutContent() {
-        let navbar = ViewHelper.get('NavbarMain');
-        let cutId = $('.context-menu-target-element').data('id');
-
-        // This function should only exist if an item has been cut
-        this.onClickPasteContent = function onClickPasteContent() {
-            let parentId = $('.context-menu-target-element').data('id');
-           
-            ContentHelper.getContentById(cutId)
-            .then((cutContent) => {
-                cutContent.parentId = parentId;
-              
-                apiCall('post', 'content/' + cutId, cutContent)
-                .then(() => {
-                    reloadResource('content')
-                    .then(() => {
-                        navbar.reload();
-
-                        location.hash = '/content/' + cutId;
-                    });
-
-                    navbar.onClickPasteContent = null;
-                })
-                .catch(navbar.onError);
-            }); 
+    static onChangeSortIndex(id, newIndex, parentId) {
+        if(parentId == '/') {
+            parentId = '';
         }
+        
+        // Get the Content model
+        ContentHelper.getContentById(id)
+
+        // API call to apply changes to Content parent
+        .then((content) => {
+            content.sort = newIndex;
+            content.parentId = parentId;
+         
+            return apiCall('post', 'content/' + id, content);
+        })
+
+        // Reload all Content models
+        .then(() => {
+            return reloadResource('content');
+        })
+
+        // Reload UI
+        .then(() => {
+            ViewHelper.get('NavbarMain').reload();
+        })
+        .catch(UI.errorModal);
+    }
+
+    /**
+     * Event: Click pull content
+     */
+    static onClickPullContent() {
+        let navbar = ViewHelper.get('NavbarMain');
+        let contentEditor = ViewHelper.get('ContentEditor');
+        let pullId = $('.context-menu-target-element').data('id');
+
+        // API call to pull the Content by id
+        apiCall('post', 'content/pull/' + pullId, {})
+        
+        // Upon success, reload all Content models    
+        .then(() => {
+            return reloadResource('content');
+        })
+
+        // Reload the UI
+        .then(() => {
+            navbar.reload();
+
+			location.hash = '/content/' + pullId;
+		
+			let editor = ViewHelper.get('ContentEditor');
+
+			if(editor &amp;&amp; editor.model.id == pullId) {
+                editor.model = null;
+				editor.fetch();
+			}
+        }) 
+        .catch(UI.errorModal);
+    }
+    
+    /**
+     * Event: Click push content
+     */
+    static onClickPushContent() {
+        let navbar = ViewHelper.get('NavbarMain');
+		let $element = $('.context-menu-target-element');
+        let pushId = $element.data('id');
+
+		$element.parent().addClass('loading');
+
+        // API call to push the Content by id
+        apiCall('post', 'content/push/' + pushId)
+
+        // Upon success, reload all Content models
+        .then(() => {
+            return reloadResource('content');
+        })
+
+        // Reload the UI
+        .then(() => {
+            navbar.reload();
+        }) 
+        .catch(UI.errorModal);
     }
 
     /**
@@ -99,378 +152,370 @@ class ContentPane extends Pane {
      *
      * @param {String} parentId
      */
-    static onClickNewContent(parentId) {
+    static onClickNewContent(parentId, asSibling) {
         let navbar = ViewHelper.get('NavbarMain');
-        let messageModal;
 
-        // Event fired when clicking "OK"
-        let onPickedSchema = () => {
-            let schemaId = messageModal.$element.find('.content-schema-reference-editor select').val();
-
-            if(schemaId) {
-                let apiUrl = 'content/new/' + schemaId;
-                
-                if(parentId) {
-                    apiUrl += '?parent=' + parentId;
-                }
-
-                apiCall('post', apiUrl)
-                .then((newContent) => {
-                    reloadResource('content')
-                    .then(() => {
-                        navbar.reload();
-                        
-                        location.hash = '/content/' + newContent.id;
-                    });
-                })
-                .catch(navbar.onError);
-           
+        // Try to get a parent Schema if it exists
+        return function getParentSchema() {
+            if(parentId) {
+                return ContentHelper.getContentById(parentId)
+                .then((parentContent) => {
+                    return SchemaHelper.getSchemaById(parentContent.schemaId);
+                });
             } else {
-                return false;
-        
+                return Promise.resolve();
             }
-        };
+        }()
 
-        // Shows the Schema picker modal
-        let showModal = (allowedSchemas) => {
+        // Parent Schema logic resolved, move on
+        .then((parentSchema) => {
+            let allowedSchemas = parentSchema ? parentSchema.allowedChildSchemas : null;
+
+            // If allowed child Schemas were found, but none were provided, don't create the Content node
             if(allowedSchemas &amp;&amp; allowedSchemas.length &lt; 1) {
-                messageModal = new MessageModal({
-                    model: {
-                        title: 'Can\'t create new content',
-                        body: 'No child content schemas are allowed under this parent'
-                    }
-                });
+                return Promise.reject(new Error('No child content schemas are allowed under this parent'));
             
+            // Some child Schemas were provided, or no restrictions were defined
             } else {
-                let contentSchemaReferenceEditor = new resources.editors.contentSchemaReference({
+                let schemaId;
+                let sortIndex = ContentHelper.getNewSortIndex(parentId);
+              
+                // Instatiate a new Content Schema reference editor
+                let schemaReference = new resources.editors.contentSchemaReference({
                     config: {
-                        allowedSchemas: allowedSchemas   
+                        allowedSchemas: allowedSchemas,
+                        parentSchema: parentSchema
                     }
                 });
 
-                messageModal = new MessageModal({
-                    model: {
-                        title: 'Create new content',
-                        body: _.div({},
-                            _.p('Please pick a schema'),
-                            contentSchemaReferenceEditor.$element
-                        )
-                    },
-                    buttons: [
-                        {
-                            label: 'Cancel',
-                            class: 'btn-default',
-                            callback: function() {
-                            }
-                        },
-                        {
-                            label: 'OK',
-                            class: 'btn-primary',
-                            callback: onPickedSchema
-                        }
-                    ]
+                schemaReference.on('change', (newValue) => {
+                    schemaId = newValue;
                 });
+
+                // Render the confirmation modal
+                UI.confirmModal(
+                    'OK',
+                    'Create new content',
+                    _.div({},
+                        _.p('Please pick a schema'),
+                        schemaReference.$element
+                    ),
+
+                    // Event fired when clicking "OK"
+                    () => {
+                        if(!schemaId) { return false; }
+                       
+                        let apiUrl = 'content/new/' + schemaId + '?sort=' + sortIndex;
+
+                        let newContent;
+
+                        // Append parent Content id to request URL
+                        if(parentId) {
+                            apiUrl += '&amp;parent=' + parentId;
+                        }
+
+                        // API call to create new Content node
+                        apiCall('post', apiUrl)
+                        
+                        // Upon success, reload resource and UI elements    
+                        .then((result) => {
+                            newContent = result;
+
+                            return reloadResource('content');
+                        })
+                        .then(() => {
+                            navbar.reload();
+                            
+                            location.hash = '/content/' + newContent.id;
+                        })
+                        .catch(UI.errorModal);
+                    }
+                );
             }
-        };
-
-        if(parentId) {
-            ContentHelper.getContentById(parentId)
-            .then((parentContent) => {
-                SchemaHelper.getSchemaById(parentContent.schemaId)
-                .then((parentSchema) => {
-                    showModal(parentSchema.allowedChildSchemas);
-                })
-                .catch(navbar.onError);
-            })
-            .catch(navbar.onError);
-
-        } else {
-            showModal();
-        }
+        })
+        .catch(UI.errorModal);
     }
 
     /**
-     * Event: Click content settings
+     * Render Content publishing modal
+     *
+     * @param {Content} content
+     * @param {Object} publishing
      */
-    static onClickContentSettings() {
+    static renderContentPublishingModal(content, publishing) {
+        // Event on clicking OK
+        function onSubmit() {
+            if(!publishing.governedBy) {
+                publishing.connections = [];
+               
+                // Loop through each input switch and add the corresponding Connection id to the connections list 
+                modal.$element.find('.switch[data-connection-id] input').each(function(i) {
+                    if(this.checked) {
+                        publishing.connections.push(
+                            this.parentElement.dataset.connectionId
+                        );
+                    }
+                });
+                
+                // Apply to children flag
+                publishing.applyToChildren = modal.$element.find('#switch-publishing-apply-to-children input')[0].checked;
+
+                // Commit publishing settings to Content model
+                content.settings.publishing = publishing;
+        
+                // API call to save the Content model
+                apiCall('post', 'content/' + content.id, content)
+                
+                // Upon success, reload the UI    
+                .then(() => {
+                    NavbarMain.reload();
+
+                    if(Router.params.id == content.id) {
+                        let contentEditor = ViewHelper.get('ContentEditor');
+
+                        contentEditor.model = content.getObject();
+                        return contentEditor.render();
+                    
+                    } else {
+                        return Promise.resolve();
+
+                    }
+                })
+                .catch(UI.errorModal);
+            }
+
+        }
+        
+        let modal = new MessageModal({
+            model: {
+                title: 'Publishing settings for "' + content.prop('title', window.language) + '"'
+            },
+            buttons: [
+                {
+                    label: 'Cancel',
+                    class: 'btn-default'
+                },
+                {
+                    label: 'OK',
+                    class: 'btn-primary',
+                    callback: () => {
+                        onSubmit();
+                    }
+                }
+            ],
+            renderBody: () => {
+                if(publishing.governedBy) {
+                    return _.div({class: 'settings-publishing'},
+                        _.p('(Settings inherited from &lt;a href="#/content/' + publishing.governedBy.id + '">' + publishing.governedBy.prop('title', window.language) + '&lt;/a>)')
+                    );
+                
+                } else {
+                    return _.div({class: 'settings-publishing'},
+                        // Apply to children switch
+                        _.div({class: 'input-group'},      
+                            _.span('Apply to children'),
+                            _.div({class: 'input-group-addon'},
+                                UI.inputSwitch(publishing.applyToChildren == true).attr('id', 'switch-publishing-apply-to-children')
+                            )
+                        ),
+
+                        // Connections list
+                        _.each(window.resources.connections, (i, connection) => { 
+                            return _.div({class: 'input-group'},      
+                                _.span(connection.title),
+                                _.div({class: 'input-group-addon'},
+                                    UI.inputSwitch(publishing.connections.indexOf(connection.id) > -1).attr('data-connection-id', connection.id)
+                                )
+                            );
+                        })
+                    );
+                }
+            }
+        });
+
+        modal.$element.toggleClass('settings-modal content-settings-modal');
+    }
+
+    /**
+     * Event: Click Content settings
+     */
+    static onClickContentPublishing() {
         let id = $('.context-menu-target-element').data('id');
         let navbar = ViewHelper.get('NavbarMain');
+        let content;
 
+        // Get Content model
         ContentHelper.getContentById(id)
-        .then((content) => {
+        .then((result) => {
+            content = result;
+
             if(!content) {
-                messageModal('Error', 'Couldn\'t find content with id "' + id + '"'); 
+                return Promise.reject(new Error('Couldn\'t find content with id "' + id + '"')); 
 
             } else {
                 // Get settings first
-                content.getSettings('publishing')
-                .then((publishing) => {
-                    // Success event
-                    function onSuccess() {
-                        navbar.reload();
-
-                        if(Router.params.id == content.id) {
-                            ViewHelper.get('ContentEditor').model = content.getObject();
-                            ViewHelper.get('ContentEditor').render();
-                        }
-                    }
-                    
-                    // Submit event
-                    function onSubmit() {
-                        if(!publishing.governedBy) {
-                            publishing.connections = [];
-                            
-                            $('.switch-connection').each(function(i) {
-                                if(this.checked) {
-                                    publishing.connections.push(
-                                        $(this).attr('data-connection-id')
-                                    );
-                                }
-                            });
-                            
-                            publishing.applyToChildren = $('#switch-publishing-apply-to-children')[0].checked;
-
-                            content.settings.publishing = publishing;
-                    
-                            // Save model
-                            apiCall('post', 'content/' + content.id, content)
-                            .then(onSuccess)
-                            .catch(navbar.onError);
-                        }
-                    }
-
-                    // Render modal 
-                    let modal = messageModal('Settings for "' + content.prop('title', window.language) + '"', [
-                        // Publishing
-                        _.h5('Publishing'),
-                        function() {
-                            if(publishing.governedBy) {
-                                return _.p('(Settings inherited from &lt;a href="#/content/' + publishing.governedBy.id + '">' + publishing.governedBy.prop('title', window.language) + '&lt;/a>)')
-                            } else {
-                                publishing.applyToChildren = publishing.applyToChildren == true || publishing.applyToChildren == 'true';
-
-                                return [
-                                    // Heading
-                                    _.div({class: 'input-group'},      
-                                        _.span('Apply to children'),
-                                        _.div({class: 'input-group-addon'},
-                                            _.div({class: 'switch'},
-                                                _.input({
-                                                    id: 'switch-publishing-apply-to-children',
-                                                    class: 'form-control switch',
-                                                    type: 'checkbox',
-                                                    checked: publishing.applyToChildren == true
-                                                }),
-                                                _.label({for: 'switch-publishing-apply-to-children'})
-                                            )
-                                        )
-                                    ),
-                                    // Connections
-                                    _.each(window.resources.connections, (i, connection) => { 
-                                        return _.div({class: 'input-group'},      
-                                            _.span(connection.title),
-                                            _.div({class: 'input-group-addon'},
-                                                _.div({class: 'switch'},
-                                                    _.input({
-                                                        id: 'switch-connection-' + i,
-                                                        'data-connection-id': connection.id,
-                                                        class: 'form-control switch switch-connection',
-                                                        type: 'checkbox',
-                                                        checked: publishing.connections.indexOf(connection.id) > -1
-                                                    }),
-                                                    _.label({
-                                                        for: 'switch-connection-' + i
-                                                    })
-                                                )
-                                            )
-                                        );
-                                    })
-                                ];
-                            }
-                        }()
-                    ], onSubmit);
-                });
+                return content.getSettings('publishing');
             }
+        })
+        
+        // Upon success, render Content settings modal
+        .then((publishing) => {
+            // Sanity check
+            publishing.applyToChildren = publishing.applyToChildren == true || publishing.applyToChildren == 'true';
+
+            this.renderContentPublishingModal(content, publishing);
         });
     }
 
     /**
      * Event: Click remove content
+     *
+     * @param {Boolean} shouldUnpublish
      */
-    static onClickRemoveContent() {
+    static onClickRemoveContent(shouldUnpublish) {
         let navbar = ViewHelper.get('NavbarMain');
-        let id = $('.context-menu-target-element').data('id');
-        let name = $('.context-menu-target-element').data('name');
+        let $element = $('.context-menu-target-element'); 
+        let id = $element.data('id');
+        let name = $element.data('name');
        
         ContentHelper.getContentById(id)
         .then((content) => {
             content.getSettings('publishing')
             .then((publishing) => {
                 function unpublishConnections() {
-                    apiCall('post', 'content/unpublish', content)
-                    .then(onSuccess)
-                    .catch(navbar.onError);
+                    return apiCall('post', 'content/unpublish', content)
+                    .then(() => {
+                        return onSuccess();
+                    });
                 }
                 
                 function onSuccess() {
-                    debug.log('Removed content with id "' + id + '"', navbar); 
-                
-                    reloadResource('content')
-                    .then(function() {
+                    return reloadResource('content')
+                    .then(() => {
                         navbar.reload();
-                        
-                        // Cancel the ContentEditor view if it was displaying the deleted content
-                        if(location.hash.indexOf('#/content/' + id) > -1) {
-                            location.hash = '/content/';
+                                
+                        let contentEditor = ViewHelper.get('ContentEditor');
+                       
+                        // Change the ContentEditor view if it was displaying the deleted content
+                        if(contentEditor &amp;&amp; contentEditor.model &amp;&amp; contentEditor.model.id == id) {
+                            // The Content was actually deleted
+                            if(shouldUnpublish) {
+                                location.hash = '/content/';
+                            
+                            // The Content still has a synced remote
+                            } else {
+                                contentEditor.model = null;
+                                contentEditor.fetch();
+
+                            }
                         }
+
+                        return Promise.resolve();
                     });
                 }
 
-                let messageModal = new MessageModal({
-                    model: {
-                        title: 'Remove content',
-                        body: _.div({},
-                            _.p('Are you sure you want to remove the content "' + name + '"?'),
-                            _.div({class: 'input-group'},      
-                                _.span('Remove child content too'),
-                                _.div({class: 'input-group-addon'},
-                                    _.div({class: 'switch'},
-                                        _.input({
-                                            id: 'switch-content-delete-children',
-                                            class: 'form-control switch',
-                                            type: 'checkbox',
-                                            checked: true
-                                        }),
-                                        _.label({for: 'switch-content-delete-children'})
-                                    )
-                                )
-                            )
+                let $deleteChildrenSwitch;
+                UI.confirmModal(
+                    'Remove',
+                    'Remove the content "' + name + '"?',
+                    _.div({class: 'input-group'},      
+                        _.span('Remove child content too'),
+                        _.div({class: 'input-group-addon'},
+                            $deleteChildrenSwitch = UI.inputSwitch(true)
                         )
-                    },
-                    buttons: [
-                        {
-                            label: 'Cancel',
-                            class: 'btn-default',
-                            callback: function() {
+                    ),
+                    () => {
+                        apiCall('delete', 'content/' + id + '?removeChildren=' + $deleteChildrenSwitch.data('checked'))
+                        .then(() => {
+                            if(shouldUnpublish &amp;&amp; publishing.connections &amp;&amp; publishing.connections.length > 0) {
+                                return unpublishConnections();
+                            } else {
+                                return onSuccess();
                             }
-                        },
-                        {
-                            label: 'OK',
-                            class: 'btn-danger',
-                            callback: function() {
-                                apiCall('delete', 'content/' + id + '?removeChildren=' + messageModal.$element.find('.switch input')[0].checked)
-                                .then(() => {
-                                    if(publishing.connections &amp;&amp; publishing.connections.length > 0) {
-                                        unpublishConnections();
-                                    } else {
-                                        onSuccess();
-                                    }
-                                })
-                                .catch(navbar.onError);
-                            }
-                        }
-                    ]
-                });
+                        })
+                        .catch(errorModal);
+                    }
+                );
             });
         });
     }
 
     /**
-     * Gets render settings
-     *
-     * @returns {Object} settings
+     * Init
      */
-    static getRenderSettings() {
-        let navbar = ViewHelper.get('NavbarMain');
-        
-        return {
-            label: 'Content',
-            route: '/content/',
-            icon: 'file',
-            items: resources.content,
+    static init() {
+        NavbarMain.addTabPane('/content/', 'Content', 'file', {
+            getItems: () => { return resources.content; },
 
-            // Set item context menu
-            itemContextMenu: {
-                'This content': '---',
-                'Create new': () => { this.onClickNewContent($('.context-menu-target-element').data('id')); },
-                'Copy': () => { this.onClickCopyContent(); },
-                'Copy id': () => { this.onClickCopyItemId(); },
-                'Cut': () => { this.onClickCutContent(); },
-                'Paste': () => { this.onClickPasteContent(); },
-                'Remove': () => { this.onClickRemoveContent(); },
-                'Settings': () => { this.onClickContentSettings(); },
+            // Item context menu
+            getItemContextMenu: (item) => {
+                let menu = {};
+                let isSyncEnabled = SettingsHelper.getCachedSettings(ProjectHelper.currentProject, null, 'sync').enabled;
+                
+                menu['This content'] = '---';
+                
+                menu['New child content'] = () => {
+                    this.onClickNewContent($('.context-menu-target-element').data('id'));
+                };
+                                
+                menu['Copy id'] = () => { this.onClickCopyItemId(); };
+
+                if(!item.remote &amp;&amp; !item.locked) {
+                    menu['Move'] = () => { this.onClickMoveItem(); };
+                }
+
+                if(!item.local &amp;&amp; !item.locked) {
+                    menu['Remove'] = () => { this.onClickRemoveContent(true); };
+                }
+                
+                menu['Folder'] = '---';
+
+                menu['New content'] = () => {
+                    let targetId = $('.context-menu-target-element').data('id');
+                    let parentId = ContentHelper.getContentByIdSync(targetId).parentId;
+                    
+                    this.onClickNewContent(parentId);
+                };
+
+                if(!item.remote &amp;&amp; !item.locked) {
+                    menu['Settings'] = '---';
+                    menu['Publishing'] = () => { this.onClickContentPublishing(); };
+                }
+                
+                if(item.locked &amp;&amp; !item.remote) { isSyncEnabled = false; }
+               
+                if(isSyncEnabled) {
+                    menu['Sync'] = '---';
+                    
+                    if(!item.remote) {
+                        menu['Push to remote'] = () => { this.onClickPushContent(); };
+                    }
+
+                    if(item.local) {
+                        menu['Remove local copy'] = () => { this.onClickRemoveContent(); };
+                    }
+                    
+                    if(item.remote) {
+                        menu['Pull from remote'] = () => { this.onClickPullContent(); };
+                    }
+                }
+
+                return menu;
             },
 
             // Set general context menu items
             paneContextMenu: {
                 'General': '---',
-                'Create new': () => { this.onClickNewContent(); }
+                'New content': () => { this.onClickNewContent(); }
             },
 
-            // Sorting logic
-            sort: function(item, queueItem) {
+            // Hierarchy logic
+            hierarchy: function(item, queueItem) {
                 // Set id data attributes
                 queueItem.$element.attr('data-content-id', item.id);
                 queueItem.parentDirAttr = {'data-content-id': item.parentId };
-
-                // Assign the sort index to the DOM element
-                queueItem.$element.attr('data-sort', item.sort);
-            },
-
-            // End dragging logic
-            onEndDrag: function(dragdropItem, dropContainer) {
-                let thisId = dragdropItem.element.dataset.contentId;
-                
-                // Get Content node first
-                ContentHelper.getContentById(thisId)
-                .then((thisContent) => {
-                    // Then change the sorting value
-                    let thisPrevSort = thisContent.sort;
-                    let newSortBasedOn = '';
-                    let newSort;
-
-                    // Feed back a success message in the console
-                    function onSuccess() {
-                        debug.log(
-                            'Changes to Content "' + thisContent.id + '":' + 
-                            '\n- sort from ' + thisPrevSort + ' to ' + thisContent.sort + ' based on ' + newSortBasedOn + 
-                            navbar
-                        );
-                    }
-
-                    // If this element has a previous sibling, base the sorting index on that
-                    if($(dragdropItem.element).prev('.pane-item-container').length > 0) {
-                        let prevSort = parseInt(dragdropItem.element.previousSibling.dataset.sort);
-
-                        newSort = prevSort + 1;
-                        newSortBasedOn = 'previous sibling';
-            
-                    // If this element has a next sibling, base the sorting index on that
-                    } else if($(dragdropItem.element).next('.pane-item-container').length > 0) {
-                        let nextSort = parseInt(dragdropItem.element.nextSibling.dataset.sort);
-
-                        newSort = nextSort - 1;
-                        newSortBasedOn = 'next sibling';
-
-                    // If it has neither, just assign the lowest possible one
-                    } else {
-                        newSort = 10000;
-                        newSortBasedOn = 'lowest possible index';
-                    }
-
-                    if(newSort != thisContent.sort) {
-                        thisContent.sort = newSort;
-
-                        // Save model
-                        apiCall('post', 'content/' + thisContent.id, thisContent.getObject())
-                        .then(onSuccess)
-                        .catch(navbar.onError);
-                        
-                        dragdropItem.element.dataset.sort = thisContent.sort;
-                    }
-                });
             }
-        }
+        });
     }
 }
 
@@ -485,13 +530,13 @@ module.exports = ContentPane;
 </div>
 
 <nav>
-    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="ApiController.html">ApiController</a></li><li><a href="ArrayEditor.html">ArrayEditor</a></li><li><a href="BooleanEditor.html">BooleanEditor</a></li><li><a href="Connection.html">Connection</a></li><li><a href="ConnectionController.html">ConnectionController</a></li><li><a href="Content.html">Content</a></li><li><a href="ContentController.html">ContentController</a></li><li><a href="ContentReferenceEditor.html">ContentReferenceEditor</a></li><li><a href="ContentSchema.html">ContentSchema</a></li><li><a href="ContentSchemaReferenceEditor.html">ContentSchemaReferenceEditor</a></li><li><a href="Controller.html">Controller</a></li><li><a href="DateEditor.html">DateEditor</a></li><li><a href="DropdownEditor.html">DropdownEditor</a></li><li><a href="Entity.html">Entity</a></li><li><a href="FieldSchema.html">FieldSchema</a></li><li><a href="Form.html">Form</a></li><li><a href="FormEditor.html">FormEditor</a></li><li><a href="JSONEditor.html">JSONEditor</a></li><li><a href="LanguageEditor.html">LanguageEditor</a></li><li><a href="LanguageSettings.html">LanguageSettings</a></li><li><a href="Media.html">Media</a></li><li><a href="MediaReferenceEditor.html">MediaReferenceEditor</a></li><li><a href="MessageModal.html">MessageModal</a></li><li><a href="NavbarMain.html">NavbarMain</a></li><li><a href="PeriodEditor.html">PeriodEditor</a></li><li><a href="ProjectHelper.html">ProjectHelper</a></li><li><a href="RichTextEditor.html">RichTextEditor</a></li><li><a href="Schema.html">Schema</a></li><li><a href="SchemaController.html">SchemaController</a></li><li><a href="SchemaEditor.html">SchemaEditor</a></li><li><a href="SchemaHelper.html">SchemaHelper</a></li><li><a href="StringEditor.html">StringEditor</a></li><li><a href="StructEditor.html">StructEditor</a></li><li><a href="TemplateReferenceEditor.html">TemplateReferenceEditor</a></li><li><a href="UrlEditor.html">UrlEditor</a></li><li><a href="UserHelper.html">UserHelper</a></li></ul>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="ApiController.html">ApiController</a></li><li><a href="AppHelper.html">AppHelper</a></li><li><a href="BackupHelper.html">BackupHelper</a></li><li><a href="BooleanEditor.html">BooleanEditor</a></li><li><a href="Connection.html">Connection</a></li><li><a href="ConnectionController.html">ConnectionController</a></li><li><a href="Content.html">Content</a></li><li><a href="ContentController.html">ContentController</a></li><li><a href="ContentReferenceEditor.html">ContentReferenceEditor</a></li><li><a href="ContentSchema.html">ContentSchema</a></li><li><a href="ContentSchemaReferenceEditor.html">ContentSchemaReferenceEditor</a></li><li><a href="Controller.html">Controller</a></li><li><a href="DateEditor.html">DateEditor</a></li><li><a href="DropdownEditor.html">DropdownEditor</a></li><li><a href="Entity.html">Entity</a></li><li><a href="FieldSchema.html">FieldSchema</a></li><li><a href="Form.html">Form</a></li><li><a href="FormEditor.html">FormEditor</a></li><li><a href="FormHelper.html">FormHelper</a></li><li><a href="InfoEditor.html">InfoEditor</a></li><li><a href="JSONEditor.html">JSONEditor</a></li><li><a href="LanguageEditor.html">LanguageEditor</a></li><li><a href="Media.html">Media</a></li><li><a href="MediaReferenceEditor.html">MediaReferenceEditor</a></li><li><a href="MessageModal.html">MessageModal</a></li><li><a href="MongoHelper.html">MongoHelper</a></li><li><a href="NavbarMain.html">NavbarMain</a></li><li><a href="NumberEditor.html">NumberEditor</a></li><li><a href="ProjectEditor.html">ProjectEditor</a></li><li><a href="ProjectHelper.html">ProjectHelper</a></li><li><a href="ProvidersSettings.html">ProvidersSettings</a></li><li><a href="RequestHelper.html">RequestHelper</a></li><li><a href="ResourceReferenceEditor.html">ResourceReferenceEditor</a></li><li><a href="RichTextEditor.html">RichTextEditor</a></li><li><a href="ScheduleController.html">ScheduleController</a></li><li><a href="ScheduleHelper.html">ScheduleHelper</a></li><li><a href="Schema.html">Schema</a></li><li><a href="SchemaController.html">SchemaController</a></li><li><a href="SchemaEditor.html">SchemaEditor</a></li><li><a href="SchemaHelper.html">SchemaHelper</a></li><li><a href="StringEditor.html">StringEditor</a></li><li><a href="StructEditor.html">StructEditor</a></li><li><a href="SyncEditor.html">SyncEditor</a></li><li><a href="SyncHelper.html">SyncHelper</a></li><li><a href="TagsEditor.html">TagsEditor</a></li><li><a href="Task.html">Task</a></li><li><a href="Template.html">Template</a></li><li><a href="TemplateEditor.html">TemplateEditor</a></li><li><a href="TemplateReferenceEditor.html">TemplateReferenceEditor</a></li><li><a href="UpdateHelper.html">UpdateHelper</a></li><li><a href="UrlEditor.html">UrlEditor</a></li><li><a href="UserHelper.html">UserHelper</a></li></ul>
 </nav>
 
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.0</a> on Mon Sep 05 2016 13:07:42 GMT+0200 (CEST)
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.3</a> on Mon May 29 2017 21:20:48 GMT+0200 (CEST)
 </footer>
 
 <script> prettyPrint(); </script>

@@ -36,48 +36,118 @@ class TemplateController extends ApiController {
      */
     static init(app) {
         app.get('/api/:project/:environment/templates', this.middleware(), this.getTemplates)
-        app.get('/api/:project/:environment/sectionTemplates', this.middleware(), this.getSectionTemplates)
+        app.get('/api/:project/:environment/templates/:type/:id', this.middleware(), this.getTemplate)
+        
+        app.post('/api/:project/:environment/templates/:type/:id', this.middleware(), this.postTemplate)
+        
+        app.delete('/api/:project/:environment/templates/:type/:id', this.middleware(), this.deleteTemplate)
     }
     
     /**
-     * Gets an array of all templates
+     * Posts a Template by id
      */
-    static getTemplates(req, res) {
-        ConnectionHelper.getTemplateProvider()
+    static postTemplate(req, res) {
+        let type = req.params.type;
+        let id = req.params.id;
+        let template = req.body;
+
+        ConnectionHelper.getTemplateProvider(req.project, req.environment)
         .then((connection) => {
-            connection.getTemplates()
-            .then((templates) => {
-                res.status(200).send(templates);
-            })
-            .catch((e) => {
-                debug.log(e, ApiController)
-                res.status(404).send([]);
-            });            
+            if(!connection) { return Promise.reject(new Error('No template provider found')); }
+            
+            return connection.setTemplateById(type, id, template);
+        })
+        .then(() => {
+            res.status(200).send('OK');
         })
         .catch((e) => {
-            // No template provider was found
-            res.status(404).send([]);
+            res.status(404).send(ApiController.printError(e, false));
         });            
     }
     
     /**
-     * Gets an array of all section templates
+     * Deletes a Template by id
      */
-    static getSectionTemplates(req, res) {
-        ConnectionHelper.getTemplateProvider()
+    static deleteTemplate(req, res) {
+        let type = req.params.type;
+        let id = req.params.id;
+
+        ConnectionHelper.getTemplateProvider(req.project, req.environment)
         .then((connection) => {
-            connection.getSectionTemplates()
-            .then((templates) => {
-                res.status(200).send(templates);
-            })
-            .catch((e) => {
-                debug.log(e, ApiController)
-                res.status(404).send([]);
-            });            
+            if(!connection) { return Promise.reject(new Error('No template provider found')); }
+            
+            return connection.deleteTemplateById(type, id);
+        })
+        .then(() => {
+            res.status(200).send('OK');
         })
         .catch((e) => {
-            // No template provider was found
-            res.status(404).send([]);
+            res.status(404).send(ApiController.printError(e, false));
+        });            
+    }
+
+
+    /**
+     * Gets a Template by id
+     */
+    static getTemplate(req, res) {
+        let type = req.params.type;
+        let id = req.params.id;
+
+        ConnectionHelper.getTemplateProvider(req.project, req.environment)
+        .then((connection) => {
+            if(!connection) { return Promise.reject(new Error('No template provider found')); }
+            
+            return connection.getTemplateById(type, id);
+        })
+        .then((template) => {
+            res.status(200).send(template);
+        })
+        .catch((e) => {
+            res.status(404).send(ApiController.printError(e, false));
+        });            
+    }
+
+    /**
+     * Gets an array of all templates
+     */
+    static getTemplates(req, res) {
+        ConnectionHelper.getTemplateProvider(req.project, req.environment)
+        .then((connection) => {
+            if(!connection) { return Promise.reject(new Error('No template provider found')); }
+           
+            let allTemplates = [];
+
+            return connection.getTemplates('page')
+            .then((pageTemplates) => {
+                if(Array.isArray(pageTemplates)) {
+                    allTemplates = allTemplates.concat(pageTemplates);
+                }
+
+                return connection.getTemplates('partial');
+            })
+            .catch((e) => {
+                debug.log(e.message, TemplateController);
+            })
+            .then((partialTemplates) => {
+                if(Array.isArray(partialTemplates)) {
+                    allTemplates = allTemplates.concat(partialTemplates);
+                }
+
+                return Promise.resolve();
+            })
+            .catch((e) => {
+                debug.log(e.message, TemplateController);
+            })
+            .then(() => {
+                return Promise.resolve(allTemplates);
+            });
+        })
+        .then((allTemplates) => {
+            res.status(200).send(allTemplates);
+        })
+        .catch((e) => {
+            res.status(404).send(ApiController.printError(e, false));
         });            
     }
 }
@@ -93,13 +163,13 @@ module.exports = TemplateController;
 </div>
 
 <nav>
-    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="ApiController.html">ApiController</a></li><li><a href="ArrayEditor.html">ArrayEditor</a></li><li><a href="BooleanEditor.html">BooleanEditor</a></li><li><a href="Connection.html">Connection</a></li><li><a href="ConnectionController.html">ConnectionController</a></li><li><a href="Content.html">Content</a></li><li><a href="ContentController.html">ContentController</a></li><li><a href="ContentReferenceEditor.html">ContentReferenceEditor</a></li><li><a href="ContentSchema.html">ContentSchema</a></li><li><a href="ContentSchemaReferenceEditor.html">ContentSchemaReferenceEditor</a></li><li><a href="Controller.html">Controller</a></li><li><a href="DateEditor.html">DateEditor</a></li><li><a href="DropdownEditor.html">DropdownEditor</a></li><li><a href="Entity.html">Entity</a></li><li><a href="FieldSchema.html">FieldSchema</a></li><li><a href="Form.html">Form</a></li><li><a href="FormEditor.html">FormEditor</a></li><li><a href="JSONEditor.html">JSONEditor</a></li><li><a href="LanguageEditor.html">LanguageEditor</a></li><li><a href="LanguageSettings.html">LanguageSettings</a></li><li><a href="Media.html">Media</a></li><li><a href="MediaReferenceEditor.html">MediaReferenceEditor</a></li><li><a href="MessageModal.html">MessageModal</a></li><li><a href="NavbarMain.html">NavbarMain</a></li><li><a href="PeriodEditor.html">PeriodEditor</a></li><li><a href="ProjectHelper.html">ProjectHelper</a></li><li><a href="RichTextEditor.html">RichTextEditor</a></li><li><a href="Schema.html">Schema</a></li><li><a href="SchemaController.html">SchemaController</a></li><li><a href="SchemaEditor.html">SchemaEditor</a></li><li><a href="SchemaHelper.html">SchemaHelper</a></li><li><a href="StringEditor.html">StringEditor</a></li><li><a href="StructEditor.html">StructEditor</a></li><li><a href="TemplateReferenceEditor.html">TemplateReferenceEditor</a></li><li><a href="UrlEditor.html">UrlEditor</a></li><li><a href="UserHelper.html">UserHelper</a></li></ul>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="ApiController.html">ApiController</a></li><li><a href="AppHelper.html">AppHelper</a></li><li><a href="BackupHelper.html">BackupHelper</a></li><li><a href="BooleanEditor.html">BooleanEditor</a></li><li><a href="Connection.html">Connection</a></li><li><a href="ConnectionController.html">ConnectionController</a></li><li><a href="Content.html">Content</a></li><li><a href="ContentController.html">ContentController</a></li><li><a href="ContentReferenceEditor.html">ContentReferenceEditor</a></li><li><a href="ContentSchema.html">ContentSchema</a></li><li><a href="ContentSchemaReferenceEditor.html">ContentSchemaReferenceEditor</a></li><li><a href="Controller.html">Controller</a></li><li><a href="DateEditor.html">DateEditor</a></li><li><a href="DropdownEditor.html">DropdownEditor</a></li><li><a href="Entity.html">Entity</a></li><li><a href="FieldSchema.html">FieldSchema</a></li><li><a href="Form.html">Form</a></li><li><a href="FormEditor.html">FormEditor</a></li><li><a href="FormHelper.html">FormHelper</a></li><li><a href="InfoEditor.html">InfoEditor</a></li><li><a href="JSONEditor.html">JSONEditor</a></li><li><a href="LanguageEditor.html">LanguageEditor</a></li><li><a href="Media.html">Media</a></li><li><a href="MediaReferenceEditor.html">MediaReferenceEditor</a></li><li><a href="MessageModal.html">MessageModal</a></li><li><a href="MongoHelper.html">MongoHelper</a></li><li><a href="NavbarMain.html">NavbarMain</a></li><li><a href="NumberEditor.html">NumberEditor</a></li><li><a href="ProjectEditor.html">ProjectEditor</a></li><li><a href="ProjectHelper.html">ProjectHelper</a></li><li><a href="ProvidersSettings.html">ProvidersSettings</a></li><li><a href="RequestHelper.html">RequestHelper</a></li><li><a href="ResourceReferenceEditor.html">ResourceReferenceEditor</a></li><li><a href="RichTextEditor.html">RichTextEditor</a></li><li><a href="ScheduleController.html">ScheduleController</a></li><li><a href="ScheduleHelper.html">ScheduleHelper</a></li><li><a href="Schema.html">Schema</a></li><li><a href="SchemaController.html">SchemaController</a></li><li><a href="SchemaEditor.html">SchemaEditor</a></li><li><a href="SchemaHelper.html">SchemaHelper</a></li><li><a href="StringEditor.html">StringEditor</a></li><li><a href="StructEditor.html">StructEditor</a></li><li><a href="SyncEditor.html">SyncEditor</a></li><li><a href="SyncHelper.html">SyncHelper</a></li><li><a href="TagsEditor.html">TagsEditor</a></li><li><a href="Task.html">Task</a></li><li><a href="Template.html">Template</a></li><li><a href="TemplateEditor.html">TemplateEditor</a></li><li><a href="TemplateReferenceEditor.html">TemplateReferenceEditor</a></li><li><a href="UpdateHelper.html">UpdateHelper</a></li><li><a href="UrlEditor.html">UrlEditor</a></li><li><a href="UserHelper.html">UserHelper</a></li></ul>
 </nav>
 
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.0</a> on Mon Sep 05 2016 13:07:42 GMT+0200 (CEST)
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.3</a> on Mon May 29 2017 21:20:48 GMT+0200 (CEST)
 </footer>
 
 <script> prettyPrint(); </script>

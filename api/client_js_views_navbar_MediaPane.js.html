@@ -28,15 +28,13 @@
         <article>
             <pre class="prettyprint source linenums"><code>'use strict';
 
-let Pane = require('./Pane');
-
-class MediaPane extends Pane {
+class MediaPane extends NavbarPane {
     /**
      * Event: On change folder path
      *
      * @param {String} newFolder
      */
-    static onChangeFolder(id, newFolder) {
+    static onChangeDirectory(id, newFolder) {
         apiCall(
             'post',
             'media/tree/' + id,
@@ -44,84 +42,16 @@ class MediaPane extends Pane {
                 id: id,
                 folder: newFolder
             } : null
-        ).then(() => {
-            reloadResource('media')
-            .then(() => {
-                ViewHelper.get('NavbarMain').reload();
-            })
-            .catch(errorModal);
+        )
+        .then(() => {
+            return reloadResource('media');
+        })
+        .then(() => {
+            ViewHelper.get('NavbarMain').reload();
+
+            location.hash = '/media/' + id;
         })
         .catch(errorModal);
-    }
-
-    /**
-     * Event: Click move Media
-     */
-    static onClickMoveMedia() {
-        let id = $('.context-menu-target-element').data('id');
-        
-        MediaHelper.getMediaById(id)
-        .then((media) => {
-            let messageModal = new MessageModal({
-                model: {
-                    title: 'Move media',
-                    body: _.div({},
-                        'Move the media object "' + media.name + '"',
-                        _.input({class: 'form-control', value: media.folder, placeholder: 'Type folder path here'})
-                    )
-                },
-                buttons: [
-                    {
-                        label: 'Cancel',
-                        class: 'btn-default',
-                        callback: () => {
-                        }
-                    },
-                    {
-                        label: 'OK',
-                        class: 'btn-danger',
-                        callback: () => {
-                            let newPath = messageModal.$element.find('input.form-control').val();
-                            
-                            this.onChangeFolder(media.id, newPath);
-                        }
-                    }
-                ]
-            });
-        });
-    }
-
-    /**
-     * Event: Click cut Media
-     */
-    static onClickCutMedia() {
-        let navbar = ViewHelper.get('NavbarMain');
-        let cutId = $('.context-menu-target-element').data('id');
-
-        // This function should only exist if an item has been cut
-        this.onClickPasteMedia = function onClickPasteMedia() {
-            let parentFolder = $('.context-menu-target-element').data('media-folder');
-         
-            apiCall(
-                'post',
-                'media/tree/' + cutId,
-                parentFolder ? {
-                    id: cutId,
-                    folder: parentFolder
-                } : null
-            )
-            .then(() => {
-                reloadResource('media')
-                .then(() => {
-                    navbar.reload();
-
-                    location.hash = '/media/' + cutId;
-                });
-
-                navbar.onClickPasteMedia = null;
-            })
-            .catch(navbar.onError);
-        }
     }
 
     /**
@@ -129,15 +59,14 @@ class MediaPane extends Pane {
      */
     static onClickRemoveMedia() {
         let navbar = ViewHelper.get('NavbarMain');
-        let id = $('.context-menu-target-element').data('id');
-        let name = $('.context-menu-target-element').data('name');
+        let $element = $('.context-menu-target-element'); 
+        let id = $element.data('id');
+        let name = $element.data('name');
         
         function onSuccess() {
-            debug.log('Removed media with id "' + id + '"', view); 
-        
             reloadResource('media')
             .then(function() {
-                view.reload();
+                ViewHelper.get('NavbarMain').reload();
                 
                 // Cancel the MediaViever view if it was displaying the deleted object
                 if(location.hash == '#/media/' + id) {
@@ -184,139 +113,47 @@ class MediaPane extends Pane {
      * Event: Click upload media
      */
     static onClickUploadMedia(replaceId) {
-        let navbar = ViewHelper.get('NavbarMain');
+        MediaBrowser.uploadModal(
+            (ids) => {
+                // We got one id back
+                if(typeof ids === 'string') {
+                    location.hash = '/media/' + ids;
 
-        function onChangeFile() {
-            let input = $(this);
-            let numFiles = this.files ? this.files.length : 1;
-            
-            if(numFiles > 0) {
-                let file = this.files[0];
-
-                let isImage =
-                    file.type == 'image/png' ||
-                    file.type == 'image/jpeg' ||
-                    file.type == 'image/gif';
-
-                let isVideo =
-                    file.type == 'video/mpeg' ||
-                    file.type == 'video/mp4' ||
-                    file.type == 'video/quicktime' ||
-                    file.type == 'video/x-matroska';
-
-                let reader = new FileReader();
-
-                reader.onload = function(e) {
-                    if(isImage) {
-                        $uploadModal.find('.media-preview').html(
-                            _.img({src: e.target.result })
-                        );
-                    }
-
-                    if(isVideo) {
-                        $uploadModal.find('.media-preview').html(
-                            _.video({src: e.target.result })
-                        );
-                    }
-
-                    $uploadModal.find('.spinner-container').toggleClass('hidden', true);
+                // We got several ids back
+                } else {
+                    location.hash = '/media/' + ids[0];
+                
                 }
-                        
-                $uploadModal.find('.spinner-container').toggleClass('hidden', false);
 
-                reader.readAsDataURL(file);
-                debug.log('Reading data of file type ' + file.type + '...', navbar);
-            }
-        }
-        
-        function onClickUpload() {
-            $uploadModal.find('form').submit();
-        }
-
-        function onSubmit(e) {
-            e.preventDefault();
-
-            $uploadModal.find('.spinner-container').toggleClass('hidden', false);
-            
-            let apiPath = 'media/' + (replaceId ? replaceId : 'new');
-
-            $.ajax({
-                url: apiUrl(apiPath),
-                type: 'POST',
-                data: new FormData(this),
-                processData: false,
-                contentType: false,
-                success: function(id) {
-                    $uploadModal.find('.spinner-container').toggleClass('hidden', true);
-
-                    reloadResource('media')
-                    .then(function() {
-                        navbar.reload();
-                        location.hash = '/media/' + id;
-
-                        $uploadModal.modal('hide');
-                    });
+                // Refresh on replace
+                if(replaceId) {
+                    let src = $('.media-preview img').attr('src');
+                    
+                    $('.media-preview img').attr('src', src + '?date=' + Date.now());
                 }
-            });
-        }
-
-        let $uploadModal = _.div({class: 'modal modal-upload-media fade'},
-            _.div({class: 'modal-dialog'},
-                _.div({class: 'modal-content'},
-                    _.div({class: 'modal-header'},
-                        _.h4({class: 'modal-title'}, 'Upload a file')
-                    ),
-                    _.div({class: 'modal-body'},
-                        _.div({class: 'spinner-container hidden'},
-                            _.span({class: 'spinner fa fa-refresh'})
-                        ),
-                        _.div({class: 'media-preview'})
-                    ),
-                    _.div({class: 'modal-footer'},
-                        _.div({class: 'input-group'},
-                            _.form({class: 'form-control'},
-                                _.input({type: 'file', name: 'media'})
-                                    .change(onChangeFile)
-                            ).submit(onSubmit),
-                            _.div({class: 'input-group-btn'},
-                                _.button({class: 'btn btn-success'},
-                                    'Upload'
-                                ).click(onClickUpload)
-                            )
-                        )
-                    )
-                )
-            )
+            },
+            () => {},
+            replaceId
         );
-
-        $uploadModal.on('hidden.bs.modal', function() {
-            $uploadModal.remove();
-        });
-
-        $('body').append($uploadModal);
-
-        $uploadModal.modal('show');
     }
     
     /**
-     * Gets the render settings
-     *
-     * @returns {Object} settings
+     * Init
      */
-    static getRenderSettings() {
-        return {
-            label: 'Media',
-            route: '/media/',
-            icon: 'file-image-o',
-            items: resources.media,
+    static init() {
+        NavbarMain.addTabPane('/media/', 'Media', 'file-image-o', {
+            getItems: () => { return resources.media; },
 
-            // Sorting logic
-            sort: function(item, queueItem) {
+            // Hierarchy logic
+            hierarchy: (item, queueItem) => {
+                let isSyncEnabled = SettingsHelper.getCachedSettings(ProjectHelper.currentProject, null, 'sync').enabled;
+
                 queueItem.$element.attr('data-media-id', item.id);
                
                 if(item.folder) {
                     queueItem.createDir = true;
-                    queueItem.parentDirAttr = {'data-media-folder': item.folder };
+                    queueItem.parentDirAttr = { 'data-media-folder': item.folder };
+                    queueItem.parentDirExtraAttr = { 'data-remote': isSyncEnabled };
                 }
             },
             
@@ -324,18 +161,16 @@ class MediaPane extends Pane {
             itemContextMenu: {
                 'This media': '---',
                 'Copy id': () => { this.onClickCopyItemId(); },
-                'Cut': () => { this.onClickCutMedia(); },
-                'Move': () => { this.onClickMoveMedia(); },
+                'Move': () => { this.onClickMoveItem(); },
                 'Remove': () => { this.onClickRemoveMedia(); },
                 'Replace': () => { this.onClickReplaceMedia(); },
-                'Directory': '---',
+                'Folder': '---',
                 'Upload new media': () => { this.onClickUploadMedia(); }
             },
 
             // Dir context menu
             dirContextMenu: {
                 'Directory': '---',
-                'Paste': () => { this.onClickPasteMedia(); },
                 'New folder': () => { this.onClickNewMediaDirectory(); },
                 'Upload new media': () => { this.onClickUploadMedia(); },
                 'Remove': () => { this.onClickRemoveMediaDirectory(); }
@@ -344,13 +179,15 @@ class MediaPane extends Pane {
             // General context menu
             paneContextMenu: {
                 'General': '---',
-                'Paste': () => { this.onClickPasteMedia(); },
                 'New folder': () => { this.onClickNewMediaDirectory(); },
                 'Upload new media': () => { this.onClickUploadMedia(); }
             }
-        };
+        });
     }
 }
+
+// Settings
+MediaPane.canCreateDirectory = true;
 
 module.exports = MediaPane;
 </code></pre>
@@ -363,13 +200,13 @@ module.exports = MediaPane;
 </div>
 
 <nav>
-    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="ApiController.html">ApiController</a></li><li><a href="ArrayEditor.html">ArrayEditor</a></li><li><a href="BooleanEditor.html">BooleanEditor</a></li><li><a href="Connection.html">Connection</a></li><li><a href="ConnectionController.html">ConnectionController</a></li><li><a href="Content.html">Content</a></li><li><a href="ContentController.html">ContentController</a></li><li><a href="ContentReferenceEditor.html">ContentReferenceEditor</a></li><li><a href="ContentSchema.html">ContentSchema</a></li><li><a href="ContentSchemaReferenceEditor.html">ContentSchemaReferenceEditor</a></li><li><a href="Controller.html">Controller</a></li><li><a href="DateEditor.html">DateEditor</a></li><li><a href="DropdownEditor.html">DropdownEditor</a></li><li><a href="Entity.html">Entity</a></li><li><a href="FieldSchema.html">FieldSchema</a></li><li><a href="Form.html">Form</a></li><li><a href="FormEditor.html">FormEditor</a></li><li><a href="JSONEditor.html">JSONEditor</a></li><li><a href="LanguageEditor.html">LanguageEditor</a></li><li><a href="LanguageSettings.html">LanguageSettings</a></li><li><a href="Media.html">Media</a></li><li><a href="MediaReferenceEditor.html">MediaReferenceEditor</a></li><li><a href="MessageModal.html">MessageModal</a></li><li><a href="NavbarMain.html">NavbarMain</a></li><li><a href="PeriodEditor.html">PeriodEditor</a></li><li><a href="ProjectHelper.html">ProjectHelper</a></li><li><a href="RichTextEditor.html">RichTextEditor</a></li><li><a href="Schema.html">Schema</a></li><li><a href="SchemaController.html">SchemaController</a></li><li><a href="SchemaEditor.html">SchemaEditor</a></li><li><a href="SchemaHelper.html">SchemaHelper</a></li><li><a href="StringEditor.html">StringEditor</a></li><li><a href="StructEditor.html">StructEditor</a></li><li><a href="TemplateReferenceEditor.html">TemplateReferenceEditor</a></li><li><a href="UrlEditor.html">UrlEditor</a></li><li><a href="UserHelper.html">UserHelper</a></li></ul>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="ApiController.html">ApiController</a></li><li><a href="AppHelper.html">AppHelper</a></li><li><a href="BackupHelper.html">BackupHelper</a></li><li><a href="BooleanEditor.html">BooleanEditor</a></li><li><a href="Connection.html">Connection</a></li><li><a href="ConnectionController.html">ConnectionController</a></li><li><a href="Content.html">Content</a></li><li><a href="ContentController.html">ContentController</a></li><li><a href="ContentReferenceEditor.html">ContentReferenceEditor</a></li><li><a href="ContentSchema.html">ContentSchema</a></li><li><a href="ContentSchemaReferenceEditor.html">ContentSchemaReferenceEditor</a></li><li><a href="Controller.html">Controller</a></li><li><a href="DateEditor.html">DateEditor</a></li><li><a href="DropdownEditor.html">DropdownEditor</a></li><li><a href="Entity.html">Entity</a></li><li><a href="FieldSchema.html">FieldSchema</a></li><li><a href="Form.html">Form</a></li><li><a href="FormEditor.html">FormEditor</a></li><li><a href="FormHelper.html">FormHelper</a></li><li><a href="InfoEditor.html">InfoEditor</a></li><li><a href="JSONEditor.html">JSONEditor</a></li><li><a href="LanguageEditor.html">LanguageEditor</a></li><li><a href="Media.html">Media</a></li><li><a href="MediaReferenceEditor.html">MediaReferenceEditor</a></li><li><a href="MessageModal.html">MessageModal</a></li><li><a href="MongoHelper.html">MongoHelper</a></li><li><a href="NavbarMain.html">NavbarMain</a></li><li><a href="NumberEditor.html">NumberEditor</a></li><li><a href="ProjectEditor.html">ProjectEditor</a></li><li><a href="ProjectHelper.html">ProjectHelper</a></li><li><a href="ProvidersSettings.html">ProvidersSettings</a></li><li><a href="RequestHelper.html">RequestHelper</a></li><li><a href="ResourceReferenceEditor.html">ResourceReferenceEditor</a></li><li><a href="RichTextEditor.html">RichTextEditor</a></li><li><a href="ScheduleController.html">ScheduleController</a></li><li><a href="ScheduleHelper.html">ScheduleHelper</a></li><li><a href="Schema.html">Schema</a></li><li><a href="SchemaController.html">SchemaController</a></li><li><a href="SchemaEditor.html">SchemaEditor</a></li><li><a href="SchemaHelper.html">SchemaHelper</a></li><li><a href="StringEditor.html">StringEditor</a></li><li><a href="StructEditor.html">StructEditor</a></li><li><a href="SyncEditor.html">SyncEditor</a></li><li><a href="SyncHelper.html">SyncHelper</a></li><li><a href="TagsEditor.html">TagsEditor</a></li><li><a href="Task.html">Task</a></li><li><a href="Template.html">Template</a></li><li><a href="TemplateEditor.html">TemplateEditor</a></li><li><a href="TemplateReferenceEditor.html">TemplateReferenceEditor</a></li><li><a href="UpdateHelper.html">UpdateHelper</a></li><li><a href="UrlEditor.html">UrlEditor</a></li><li><a href="UserHelper.html">UserHelper</a></li></ul>
 </nav>
 
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.0</a> on Mon Sep 05 2016 13:07:42 GMT+0200 (CEST)
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.3</a> on Mon May 29 2017 21:20:48 GMT+0200 (CEST)
 </footer>
 
 <script> prettyPrint(); </script>

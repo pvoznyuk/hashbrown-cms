@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: server/helpers/SyncHelper.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: server/helpers/SyncHelper.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>'use strict';
+
+/**
+ * The helper class for all synchronisation services
+ */
+class SyncHelper {
+    /**
+     * Gets a new token
+     *
+     * @param {String} project
+     * @param {String} username
+     * @param {String} password
+     *
+     * @returns {Promise} New token
+     */
+    static renewToken(
+        project = requiredParam('project'),
+        username = requiredParam('username'),
+        password = requiredParam('password')
+    ) {
+        return SettingsHelper.getSettings(project, '', 'sync')
+        .then((settings) => {
+            debug.log('Renewing sync token for ' + project + '...', this);
+
+            return new Promise((resolve, reject) => {
+                let headers = {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json; charset=utf-8'
+                };
+                
+                let postData = {
+                    username: username,
+                    password: password
+                };
+                    
+                RequestHelper.post(settings.url + 'user/login?persist=true', {
+                    headers: headers,
+                    data: JSON.stringify(postData)
+                }).on('complete', (data, response) => {
+                    if(typeof data !== 'string' || data.length !== 40) {
+                        reject(data);
+                    
+                    } else {
+                        debug.log('Sync token renewed successfully', this);
+                        
+                        resolve(data);
+                    
+                    }
+                });
+            });
+        });
+    }
+    
+    /**
+     * Get resource item
+     *
+     * @param {String} project
+     * @param {String} environment
+     * @param {String} remoteResourceName
+     * @param {String} remoteItemName
+     *
+     * @returns {Promise} Resource
+     */
+    static getResourceItem(
+        project = requiredParam('project'),
+        environment = requiredParam('environment'),
+        remoteResourceName = requiredParam('remoteResourceName'),
+        remoteItemName = requiredParam('remoteItemName')
+    ) {
+        if(!remoteItemName) {
+            return SyncHelper.getResource(project, environment, remoteResourceName);
+        }
+
+        return SettingsHelper.getSettings(project, '', 'sync')
+        .then((settings) => {
+            return new Promise((resolve, reject) => {
+                if(settings &amp;&amp; settings.enabled) {
+                    let headers = {
+                        'Accept': 'application/json'
+                    };
+                    
+                    let path = settings.project;
+                    
+                    if(environment) {
+                        path += '/' + environment;
+                    }
+
+                    let resource = remoteResourceName + '/' + remoteItemName;
+
+                    debug.log('Requesting remote resource item ' + resource + ' for ' + path + '...', this, 3);
+
+                    RequestHelper.get(settings.url + path + '/' + resource + '?token=' + settings.token, {
+                        headers: headers
+                    }).on('complete', (data, response) => {
+                        if(data instanceof Error) {
+                            reject(data);
+
+                        } else if(typeof data === 'string') {
+                            reject(new Error(data));
+                        
+                        } else {
+                            if(data instanceof Object) {
+                                data.locked = true;
+                                data.remote = true;
+                                data.local = false;
+                            }
+
+                            debug.log('Remote resource item ' + resource + ' retrieved successfully', this, 3);
+                            
+                            resolve(data);
+                        }
+                    });
+
+                } else {
+                    resolve(null);
+                }
+            });
+        });
+    }
+
+    /**
+     * Set resource item
+     *
+     * @param {String} project
+     * @param {String} environment
+     * @param {String} remoteResourceName
+     * @param {String} remoteItemName
+     * @param {Object} remoteItemData
+     *
+     * @returns {Promise} Whether setting was successful
+     */
+    static setResourceItem(
+        project = requiredParam('project'),
+        environment = requiredParam('environment'),
+        remoteResourceName = requiredParam('remoteResourceName'),
+        remoteItemName = requiredParam('remoteItemName'),
+        remoteItemData = requiredParam('remoteItemData')
+    ) {
+        return SettingsHelper.getSettings(project, '', 'sync')
+        .then((settings) => {
+            return new Promise((resolve, reject) => {
+                if(settings &amp;&amp; settings.enabled) {
+                    let path = settings.project;
+                    
+                    if(environment) {
+                        path += '/' + environment;
+                    }
+                    
+                    let resource = remoteResourceName;
+                    
+                    if(remoteItemName) {
+                        resource += '/' + remoteItemName;
+                    }
+                    
+                    debug.log('Posting remote resource item ' + resource + ' for ' + path + '...', this, 3);
+                   
+                    let headers = {
+                        'Content-Type': 'application/json'
+                    };
+                   
+                    // Send the API request, and make sure to create/upsert any resources that do not yet exist on the remote 
+                    RequestHelper.post(settings.url + path + '/' + resource + '?create=true&amp;token=' + settings.token, {
+                        headers: headers,
+                        data: JSON.stringify(remoteItemData)
+                    }).on('complete', (data, response) => {
+                        if(data instanceof Error) {
+                            reject(data);
+
+                        } else if(typeof data === 'string') {
+                            reject(new Error(data));
+                        
+                        } else {
+                            debug.log('Remote resource item ' + resource + ' posted successfully', this, 3);
+                            
+                            resolve(true);
+                        }
+                    });
+
+                } else {
+                    resolve(false);
+                }
+            });
+        });
+    }
+
+    /**
+     * Get resource
+     *
+     * @param {String} project
+     * @param {String} environment
+     * @param {String} remoteResourceName
+     * @param {Object} params
+     *
+     * @returns {Promise} Resource
+     */
+    static getResource(
+        project = requiredParam('project'),
+        environment = requiredParam('environment'),
+        remoteResourceName = requiredParam('remoteResourceName'),
+        params = {}
+    ) {
+        return SettingsHelper.getSettings(project, '', 'sync')
+        .then((settings) => {
+            return new Promise((resolve, reject) => {
+                if(settings &amp;&amp; settings.enabled) {
+                    let path = settings.project;
+                    
+                    if(environment) {
+                        path += '/' + environment;
+                    }
+                    
+                    debug.log('Requesting remote resource ' + remoteResourceName + ' for ' + path + '...', this, 3);
+                    
+                    params.token = settings.token;
+
+                    let headers = {
+                        'Accept': 'application/json'
+                    };
+                  
+                    let now = Date.now();
+
+                    RequestHelper.get(settings.url + path + '/' + remoteResourceName, {
+                        headers: headers,
+                        query: params
+                    }).on('complete', (data, response) => {
+                        if(data instanceof Error) {
+                            reject(data);
+                        
+                        } else if(typeof data === 'string') {
+                            reject(new Error(data));
+           
+                        } else {
+                            debug.log('Remote resource ' + remoteResourceName + ' retrieved successfully', this, 3);
+                            
+                            resolve(data);
+                        
+                        }
+                    });
+
+                } else {
+                    resolve(null);
+                }
+            });
+        });
+    }
+
+    /**
+     * Merges a resource with a synced one
+     *
+     * @param {String} project
+     * @param {String} environment
+     * @param {String} remoteResourceName
+     * @param {Array} localResource
+     * @param {Object} params
+     *
+     * @return {Promise} Merged resource
+     */
+    static mergeResource(
+        project = requiredParam('project'),
+        environment = requiredParam('environment'),
+        remoteResourceName = requiredParam('remoteResourceName'),
+        localResource = requiredParam('localResource'),
+        params = {}
+    ) {
+        return this.getResource(project, environment, remoteResourceName, params)
+        .then((remoteResource) => {
+            let mergedResource;
+
+            if(remoteResource) {
+                // Cache ids to look for duplicates
+                let remoteIds = {};
+                let duplicateIds = {};
+                
+                for(let r in remoteResource) {
+                    let remoteItem = remoteResource[r];
+
+                    if(!remoteItem) {
+                        debug.log('"' + r + '" in remote resource "' + remoteResourceName + '" is null', this);
+
+                    } else if(typeof remoteItem !== 'object') {
+                        debug.log('"' + r + '" in remote resource "' + remoteResourceName + '" is not an object: ' + remoteItem, this);
+
+                    } else {
+                        remoteItem.locked = true;
+                        remoteItem.remote = true;
+                        remoteItem.local = false;
+
+                        remoteIds[remoteItem.id] = true;
+
+                    }
+                }
+
+                // Look for duplicates and flag local nodes
+                for(let l in localResource) {
+                    let localItem = localResource[l];
+
+                    if(remoteIds[localItem.id] == true) {
+                        localItem.remote = false;
+                        localItem.locked = false;
+                        localItem.local = true;
+
+                        duplicateIds[localItem.id] = true;
+                    }
+                }
+
+                // Merge resources
+                if(remoteResource instanceof Array &amp;&amp; localResource instanceof Array) {
+                    mergedResource = [];
+                    
+                    for(let v of remoteResource) {
+                        if(duplicateIds[v.id] == true) { continue; }
+
+                        mergedResource[mergedResource.length] = v;
+                    }
+                    
+                    for(let v of localResource) {
+                        mergedResource[mergedResource.length] = v;
+                    }
+                
+                } else if(remoteResource instanceof Object &amp;&amp; localResource instanceof Object) {
+                    mergedResource = {};
+                    
+                    for(let k in remoteResource) {
+                        mergedResource[k] = remoteResource[k];
+                    }
+                    
+                    for(let k in localResource) {
+                        mergedResource[k] = localResource[k];
+                    }
+                
+                } else {
+                    return Promise.reject(new Error('Local and remote resources in "' + remoteResourceName + '" are not of same type'));
+                
+                }
+            
+            } else {
+                mergedResource = localResource;
+
+            }
+
+            return new Promise((resolve) => {
+                resolve(mergedResource);
+            });
+        });
+    }
+}
+
+module.exports = SyncHelper;
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="ApiController.html">ApiController</a></li><li><a href="AppHelper.html">AppHelper</a></li><li><a href="BackupHelper.html">BackupHelper</a></li><li><a href="BooleanEditor.html">BooleanEditor</a></li><li><a href="Connection.html">Connection</a></li><li><a href="ConnectionController.html">ConnectionController</a></li><li><a href="Content.html">Content</a></li><li><a href="ContentController.html">ContentController</a></li><li><a href="ContentReferenceEditor.html">ContentReferenceEditor</a></li><li><a href="ContentSchema.html">ContentSchema</a></li><li><a href="ContentSchemaReferenceEditor.html">ContentSchemaReferenceEditor</a></li><li><a href="Controller.html">Controller</a></li><li><a href="DateEditor.html">DateEditor</a></li><li><a href="DropdownEditor.html">DropdownEditor</a></li><li><a href="Entity.html">Entity</a></li><li><a href="FieldSchema.html">FieldSchema</a></li><li><a href="Form.html">Form</a></li><li><a href="FormEditor.html">FormEditor</a></li><li><a href="FormHelper.html">FormHelper</a></li><li><a href="InfoEditor.html">InfoEditor</a></li><li><a href="JSONEditor.html">JSONEditor</a></li><li><a href="LanguageEditor.html">LanguageEditor</a></li><li><a href="Media.html">Media</a></li><li><a href="MediaReferenceEditor.html">MediaReferenceEditor</a></li><li><a href="MessageModal.html">MessageModal</a></li><li><a href="MongoHelper.html">MongoHelper</a></li><li><a href="NavbarMain.html">NavbarMain</a></li><li><a href="NumberEditor.html">NumberEditor</a></li><li><a href="ProjectEditor.html">ProjectEditor</a></li><li><a href="ProjectHelper.html">ProjectHelper</a></li><li><a href="ProvidersSettings.html">ProvidersSettings</a></li><li><a href="RequestHelper.html">RequestHelper</a></li><li><a href="ResourceReferenceEditor.html">ResourceReferenceEditor</a></li><li><a href="RichTextEditor.html">RichTextEditor</a></li><li><a href="ScheduleController.html">ScheduleController</a></li><li><a href="ScheduleHelper.html">ScheduleHelper</a></li><li><a href="Schema.html">Schema</a></li><li><a href="SchemaController.html">SchemaController</a></li><li><a href="SchemaEditor.html">SchemaEditor</a></li><li><a href="SchemaHelper.html">SchemaHelper</a></li><li><a href="StringEditor.html">StringEditor</a></li><li><a href="StructEditor.html">StructEditor</a></li><li><a href="SyncEditor.html">SyncEditor</a></li><li><a href="SyncHelper.html">SyncHelper</a></li><li><a href="TagsEditor.html">TagsEditor</a></li><li><a href="Task.html">Task</a></li><li><a href="Template.html">Template</a></li><li><a href="TemplateEditor.html">TemplateEditor</a></li><li><a href="TemplateReferenceEditor.html">TemplateReferenceEditor</a></li><li><a href="UpdateHelper.html">UpdateHelper</a></li><li><a href="UrlEditor.html">UrlEditor</a></li><li><a href="UserHelper.html">UserHelper</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.3</a> on Mon May 29 2017 21:20:48 GMT+0200 (CEST)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

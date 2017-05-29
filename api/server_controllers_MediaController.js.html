@@ -31,8 +31,6 @@
 // Libraries
 let fs = require('fs');
 
-let restler = require('restler');
-
 // Classes
 let ApiController = require('./ApiController');
 let Media = require('../models/Media');
@@ -44,13 +42,16 @@ class MediaController extends ApiController {
     static init(app) {
         app.get('/media/:project/:environment/:id', this.middleware({ authenticate: false }), this.serveMedia);
         
-        app.post('/api/:project/:environment/media/new', this.middleware(), MediaHelper.getUploadHandler(), this.createMedia);
         app.get('/api/:project/:environment/media/tree', this.middleware(), this.getMediaTree);
-        app.post('/api/:project/:environment/media/tree/:id', this.middleware(), this.setMediaTreeItem);
         app.get('/api/:project/:environment/media/:id', this.middleware(), this.getSingleMedia);
-        app.post('/api/:project/:environment/media/:id', this.middleware(), MediaHelper.getUploadHandler(), this.setMedia);
-        app.delete('/api/:project/:environment/media/:id', this.middleware(), this.deleteMedia);
         app.get('/api/:project/:environment/media', this.middleware(), this.getMedia);
+        
+        app.post('/api/:project/:environment/media/new', this.middleware(), MediaHelper.getUploadHandler(), this.createMedia);
+        app.post('/api/:project/:environment/media/tree/:id', this.middleware(), this.setMediaTreeItem);
+        app.post('/api/:project/:environment/media/:id', this.middleware(), MediaHelper.getUploadHandler(), this.setMedia);
+        app.post('/api/:project/:environment/media/replace/:id', this.middleware(), MediaHelper.getUploadHandler(true), this.setMedia);
+        
+        app.delete('/api/:project/:environment/media/:id', this.middleware(), this.deleteMedia);
     }
 
     /**
@@ -59,40 +60,29 @@ class MediaController extends ApiController {
     static serveMedia(req, res) {
         let id = req.params.id;
 
-        ConnectionHelper.getMediaProvider()
+        ConnectionHelper.getMediaProvider(req.project, req.environment)
         .then((connection) => {
             return connection.getMedia(id);
         })
         .then((media) => {
             if(media) {
                 let contentType = media.getContentTypeHeader();
-
-                // TODO: Remplace this temporary hack with an actual file service
-                // The problem here is that SVG content is received fine through binary representation, but actual binary content isn't
-                if(contentType != 'image/svg+xml') {
-                    res.redirect(media.url);
-
+                
+                if(!media.remote) {
+                    res.sendFile(media.url);
+               
+                // Piping the data through would be a more elegant solution, but ultimately more work for the server
+                // The remote source might also have unpredictable headers, so it's best to let the remote handle content delivery etirely
                 } else {
-                    restler.get(media.url, {
-                        headers: {
-                            'Accept': contentType 
-                        }
-                    })
-                    .on('success', (data, response) => {
-                        res.header('Content-Type', contentType);
-
-                        res.status(200).end(data, 'binary');
-                    })
-                    .on('fail', (data, response) => {
-                        res.status(404).send(e);   
-                    });
+                    res.redirect(media.url);
+                
                 }
             } else {
                 res.status(404).send('Not found');
             }
         })
         .catch((e) => {
-            res.status(400).end(e.message);  
+            res.status(404).end(ApiController.printError(e, false));  
         });
     }
     
@@ -100,13 +90,12 @@ class MediaController extends ApiController {
      * Gets the Media tree
      */
     static getMediaTree(req, res) {
-        MediaHelper.getTree()
+        MediaHelper.getTree(req.project, req.environment)
         .then((tree) => {
             res.status(200).send(tree);
         })
         .catch((e) => {
-            res.status(404).send([]);
-            debug.log(e, ApiController);
+            res.status(404).send(ApiController.printError(e));
         });            
     }
     
@@ -117,13 +106,12 @@ class MediaController extends ApiController {
         let id = req.params.id;
         let item = req.body;
 
-        MediaHelper.setTreeItem(id, item)
+        MediaHelper.setTreeItem(req.project, req.environment, id, item)
         .then(() => {
             res.status(200).send(item);
         })
         .catch((e) => {
-            res.status(502).send(e);
-            debug.log(e, ApiController);
+            res.status(502).send(ApiController.printError(e));
         });            
     }
     
@@ -131,31 +119,29 @@ class MediaController extends ApiController {
      * Gets a list of Media objects
      */
     static getMedia(req, res) {
-        ConnectionHelper.getMediaProvider()
-        .then((connection) => {
-            connection.getAllMedia()
-            .then((media) => {
-                MediaHelper.getTree()
-                .then((tree) => {
-                    for(let i in media) {
-                        media[i].applyFolderFromTree(tree);  
-                    }
+        let media;
+        let tree;
 
-                    res.status(200).send(media);
-                })
-                .catch((e) => {
-                    debug.log(e, ApiController);
-                    res.status(404).send([]);
-                });
-            })
-            .catch((e) => {
-                debug.log(e, ApiController);
-                res.status(404).send([]);    
-            });            
+        ConnectionHelper.getMediaProvider(req.project, req.environment)
+        .then((connection) => {
+            return connection.getAllMedia();
+        })
+        .then((result) => {
+            media = result;
+
+            return MediaHelper.getTree(req.project, req.environment);
+        })
+        .then((result) => {
+            let tree = result;
+
+            for(let i in media) {
+                media[i].applyFolderFromTree(tree);  
+            }
+
+            res.status(200).send(media);
         })
         .catch((e) => {
-            debug.log(e, ApiController);
-            res.status(404).send([]);    
+            res.status(404).send(ApiController.printError(e, false));    
         });            
     }
     
@@ -164,30 +150,27 @@ class MediaController extends ApiController {
      */
     static getSingleMedia(req, res) {
         let id = req.params.id;
+        let media;
+        let tree;
 
-        ConnectionHelper.getMediaProvider()
+        ConnectionHelper.getMediaProvider(req.project, req.environment)
         .then((connection) => {
-            connection.getMedia(id)
-            .then((media) => {
-                MediaHelper.getTree()
-                .then((tree) => {
-                    media.applyFolderFromTree(tree);
+            return connection.getMedia(id);
+        })
+        .then((result) => {
+            media = result;
 
-                    res.status(200).send(media);
-                })
-                .catch((e) => {
-                    debug.log(e, ApiController);
-                    res.status(404).send(e.message);    
-                });            
-            })
-            .catch((e) => {
-                debug.log(e, ApiController);
-                res.status(404).send(e.message);    
-            });            
-        })            
+            return MediaHelper.getTree(req.project, req.environment);
+        })
+        .then((result) => {
+            tree = result;
+
+            media.applyFolderFromTree(tree);
+
+            res.status(200).send(media);
+        })
         .catch((e) => {
-            debug.log(e, ApiController);
-            res.status(404).send(e.message);    
+            res.status(404).send(ApiController.printError(e));    
         });            
     }
     
@@ -197,19 +180,15 @@ class MediaController extends ApiController {
     static deleteMedia(req, res) {
         let id = req.params.id;
 
-        ConnectionHelper.getMediaProvider()
+        ConnectionHelper.getMediaProvider(req.project, req.environment)
         .then((connection) => {
-            connection.removeMedia(id)
-            .then(() => {
-                res.sendStatus(200);
-            })
-            .catch((e) => {
-                res.status(404).send(e);    
-            });            
-        })            
+            return connection.removeMedia(id);
+        })
+        .then(() => {
+            res.sendStatus(200);
+        })
         .catch((e) => {
-            res.status(404).send(e);
-            debug.warning(e, ApiController);
+            res.status(404).send(ApiController.printError(e));
         });            
     }
 
@@ -218,32 +197,34 @@ class MediaController extends ApiController {
      */
     static setMedia(req, res) {
         let file = req.file;
+        let files = req.files;
         let id = req.params.id;
 
-        if(file) {
-            ConnectionHelper.getMediaProvider()
-            .then((connection) => {
-                connection.setMedia(id, file)
-                .then(() => {
-                    // Remove temp file
-                    fs.unlinkSync(file.path);
+        if(!file &amp;&amp; files &amp;&amp; files.length > 0) {
+            file = files[0];
+        }
 
-                    // Return the id
-                    res.send(id);
-                })
-                .catch((e) => {
-                    debug.warning(e);
-                    res.status(400).send(e);
-                });            
+        if(file) {
+
+            ConnectionHelper.getMediaProvider(req.project, req.environment)
+            .then((connection) => {
+                return connection.setMedia(id, file);
+            })
+            .then(() => {
+                // Remove temp file
+                if(fs.existsSync(file.path)) {
+                    fs.unlinkSync(file.path);
+                }
+
+                // Return the id
+                res.status(200).send(id);
             })            
             .catch((e) => {
-                debug.warning(e);
-                res.status(400).send(e);
+                res.status(400).send(MediaController.printError(e));
             });            
 
         } else {
-            debug.warning(e);
-            res.status(400).send(e);
+            res.status(400).send(MediaController.printError(new Error('File was null')));
         }
     }
 
@@ -251,30 +232,42 @@ class MediaController extends ApiController {
      * Creates a Media object
      */
     static createMedia(req, res) {
-        let file = req.file;
+        let files = req.files;
 
-        if(file) {
-            let media = Media.create();
+        if(files) {
+            let ids = [];
 
-            ConnectionHelper.getMediaProvider()
+            let next = () => {
+                let file = files.pop();
+
+                if(!file) {
+                    return Promise.resolve();
+                }
+
+                let media = Media.create();
+
+                return ConnectionHelper.getMediaProvider(req.project, req.environment)
                 .then((connection) => {
-                    connection.setMedia(media.id, file)
-                        .then(() => {
-                            res.status(200).send(media.id);
-                        })
-                    .catch((e) => {
-                        debug.warning(e);
-                        res.status(400).send(e);    
-                    });
-                })            
+                    return connection.setMedia(media.id, file);
+                })
+                .then(() => {
+                    ids.push(media.id);
+
+                    return next();  
+                });
+            };
+
+            next()
+            .then(() => {
+                res.status(200).send(ids);
+            })
             .catch((e) => {
-                debug.warning(e);
-                res.status(400).send(e);    
+                res.status(400).send(MediaController.printError(e));    
             });
 
         } else {
-            debug.warning(e);
-            res.status(400).send(e);    
+            debug.warning('File was not provided', MediaController);
+            res.status(400).send('File was not provided');    
         }
     }
 }
@@ -290,13 +283,13 @@ module.exports = MediaController;
 </div>
 
 <nav>
-    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="ApiController.html">ApiController</a></li><li><a href="ArrayEditor.html">ArrayEditor</a></li><li><a href="BooleanEditor.html">BooleanEditor</a></li><li><a href="Connection.html">Connection</a></li><li><a href="ConnectionController.html">ConnectionController</a></li><li><a href="Content.html">Content</a></li><li><a href="ContentController.html">ContentController</a></li><li><a href="ContentReferenceEditor.html">ContentReferenceEditor</a></li><li><a href="ContentSchema.html">ContentSchema</a></li><li><a href="ContentSchemaReferenceEditor.html">ContentSchemaReferenceEditor</a></li><li><a href="Controller.html">Controller</a></li><li><a href="DateEditor.html">DateEditor</a></li><li><a href="DropdownEditor.html">DropdownEditor</a></li><li><a href="Entity.html">Entity</a></li><li><a href="FieldSchema.html">FieldSchema</a></li><li><a href="Form.html">Form</a></li><li><a href="FormEditor.html">FormEditor</a></li><li><a href="JSONEditor.html">JSONEditor</a></li><li><a href="LanguageEditor.html">LanguageEditor</a></li><li><a href="LanguageSettings.html">LanguageSettings</a></li><li><a href="Media.html">Media</a></li><li><a href="MediaReferenceEditor.html">MediaReferenceEditor</a></li><li><a href="MessageModal.html">MessageModal</a></li><li><a href="NavbarMain.html">NavbarMain</a></li><li><a href="PeriodEditor.html">PeriodEditor</a></li><li><a href="ProjectHelper.html">ProjectHelper</a></li><li><a href="RichTextEditor.html">RichTextEditor</a></li><li><a href="Schema.html">Schema</a></li><li><a href="SchemaController.html">SchemaController</a></li><li><a href="SchemaEditor.html">SchemaEditor</a></li><li><a href="SchemaHelper.html">SchemaHelper</a></li><li><a href="StringEditor.html">StringEditor</a></li><li><a href="StructEditor.html">StructEditor</a></li><li><a href="TemplateReferenceEditor.html">TemplateReferenceEditor</a></li><li><a href="UrlEditor.html">UrlEditor</a></li><li><a href="UserHelper.html">UserHelper</a></li></ul>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="ApiController.html">ApiController</a></li><li><a href="AppHelper.html">AppHelper</a></li><li><a href="BackupHelper.html">BackupHelper</a></li><li><a href="BooleanEditor.html">BooleanEditor</a></li><li><a href="Connection.html">Connection</a></li><li><a href="ConnectionController.html">ConnectionController</a></li><li><a href="Content.html">Content</a></li><li><a href="ContentController.html">ContentController</a></li><li><a href="ContentReferenceEditor.html">ContentReferenceEditor</a></li><li><a href="ContentSchema.html">ContentSchema</a></li><li><a href="ContentSchemaReferenceEditor.html">ContentSchemaReferenceEditor</a></li><li><a href="Controller.html">Controller</a></li><li><a href="DateEditor.html">DateEditor</a></li><li><a href="DropdownEditor.html">DropdownEditor</a></li><li><a href="Entity.html">Entity</a></li><li><a href="FieldSchema.html">FieldSchema</a></li><li><a href="Form.html">Form</a></li><li><a href="FormEditor.html">FormEditor</a></li><li><a href="FormHelper.html">FormHelper</a></li><li><a href="InfoEditor.html">InfoEditor</a></li><li><a href="JSONEditor.html">JSONEditor</a></li><li><a href="LanguageEditor.html">LanguageEditor</a></li><li><a href="Media.html">Media</a></li><li><a href="MediaReferenceEditor.html">MediaReferenceEditor</a></li><li><a href="MessageModal.html">MessageModal</a></li><li><a href="MongoHelper.html">MongoHelper</a></li><li><a href="NavbarMain.html">NavbarMain</a></li><li><a href="NumberEditor.html">NumberEditor</a></li><li><a href="ProjectEditor.html">ProjectEditor</a></li><li><a href="ProjectHelper.html">ProjectHelper</a></li><li><a href="ProvidersSettings.html">ProvidersSettings</a></li><li><a href="RequestHelper.html">RequestHelper</a></li><li><a href="ResourceReferenceEditor.html">ResourceReferenceEditor</a></li><li><a href="RichTextEditor.html">RichTextEditor</a></li><li><a href="ScheduleController.html">ScheduleController</a></li><li><a href="ScheduleHelper.html">ScheduleHelper</a></li><li><a href="Schema.html">Schema</a></li><li><a href="SchemaController.html">SchemaController</a></li><li><a href="SchemaEditor.html">SchemaEditor</a></li><li><a href="SchemaHelper.html">SchemaHelper</a></li><li><a href="StringEditor.html">StringEditor</a></li><li><a href="StructEditor.html">StructEditor</a></li><li><a href="SyncEditor.html">SyncEditor</a></li><li><a href="SyncHelper.html">SyncHelper</a></li><li><a href="TagsEditor.html">TagsEditor</a></li><li><a href="Task.html">Task</a></li><li><a href="Template.html">Template</a></li><li><a href="TemplateEditor.html">TemplateEditor</a></li><li><a href="TemplateReferenceEditor.html">TemplateReferenceEditor</a></li><li><a href="UpdateHelper.html">UpdateHelper</a></li><li><a href="UrlEditor.html">UrlEditor</a></li><li><a href="UserHelper.html">UserHelper</a></li></ul>
 </nav>
 
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.0</a> on Mon Sep 05 2016 13:07:42 GMT+0200 (CEST)
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.3</a> on Mon May 29 2017 21:20:48 GMT+0200 (CEST)
 </footer>
 
 <script> prettyPrint(); </script>

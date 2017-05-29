@@ -35,10 +35,11 @@ let bodyparser = require('body-parser');
 let ApiController = require('./ApiController');
 
 // Constants
-const SUBMISSION_TIMEOUT_MS = 500;
+const SUBMISSION_TIMEOUT_MS = 1000;
 
 // Private vars
 let lastSubmission = Date.now();
+let lastIp = '';
 
 class FormsController extends ApiController {
     /**
@@ -46,38 +47,143 @@ class FormsController extends ApiController {
      */
     static init(app) {
         app.get('/api/:project/:environment/forms/', this.middleware(), this.getAllForms);
-        app.post('/api/:project/:environment/forms/new', this.middleware(), this.postNew);
         app.get('/api/:project/:environment/forms/:id', this.middleware(), this.getForm);
-        app.post('/api/:project/:environment/forms/:id', this.middleware(), this.postForm);
-        app.post('/api/:project/:environment/forms/:id/submit', this.middleware({ authenticate: false, allowCORS: true }), bodyparser.urlencoded({extended: true}), this.postSubmit);
+        app.get('/api/:project/:environment/forms/:id/entries', this.middleware(), this.getAllEntries);
 
+        app.post('/api/:project/:environment/forms/new', this.middleware(), this.postNew);
+        app.post('/api/:project/:environment/forms/:id', this.middleware(), this.postForm);
+        app.post('/api/:project/:environment/forms/:id/submit', this.middleware({ authenticate: false, allowCORS: this.checkCORS }), bodyparser.urlencoded({extended: true}), this.postSubmit);
+        app.post('/api/:project/:environment/forms/pull/:id', this.middleware(), this.pullForm);
+        app.post('/api/:project/:environment/forms/push/:id', this.middleware(), this.pushForm);
+        app.post('/api/:project/:environment/forms/clear/:id', this.middleware(), this.postClearAllEntries);
+
+        app.delete('/api/:project/:environment/forms/:id', this.middleware(), this.deleteForm);
+        
         // Init spam prevention timer
         lastSubmission = Date.now();
     }
-        
+      
+    /**
+     * Check CORS
+     *
+     * @returns {Promise} Result
+     */
+    static checkCORS(req, res) {
+        return FormHelper.getForm(req.params.project, req.params.environment, req.params.id)
+        .then((form) => {
+            return Promise.resolve(form.allowedOrigin || '*');
+        });
+    }
+
     /**
      * Gets all forms
      */
     static getAllForms(req, res) {
-        FormHelper.getAllForms()
+        FormHelper.getAllForms(req.project, req.environment)
         .then((forms) => {
             res.status(200).send(forms);
         })
         .catch((e) => {
-            res.status(502).send(e.message);
+            res.status(502).send(FormsController.printError(e));
         });
+    }
+    
+    /**
+     * Deletes a single Form by id
+     */
+    static deleteForm(req, res) {
+        FormHelper.deleteForm(req.project, req.environment, req.params.id)
+        .then(() => {
+            res.status(200).send('OK');
+        })
+        .catch((e) => {
+            res.status(502).send(FormsController.printError(e));
+        });
+    }
+    
+    /**
+     * Pulls Form by id
+     */
+    static pullForm(req, res) {
+        let id = req.params.id;
+
+        SyncHelper.getResourceItem(req.project, req.environment, 'forms', id)
+        .then((resourceItem) => {
+            if(!resourceItem) { return Promise.reject(new Error('Couldn\'t find remote Form "' + id + '"')); }
+       
+            return FormHelper.setForm(req.project, req.environment, id, resourceItem)
+            .then(() => {
+                res.status(200).send(resourceItem);
+            });
+        })
+        .catch((e) => {
+            res.status(404).send(FormController.printError(e));   
+        }); 
+    }
+    
+    /**
+     * Pushes Form by id
+     */
+    static pushForm(req, res) {
+        let id = req.params.id;
+
+        FormHelper.getForm(req.project, req.environment, id)
+        .then((localForm) => {
+            return SyncHelper.setResourceItem(req.project, req.environment, 'forms', id, localForm);
+        })
+        .then(() => {
+            res.status(200).send(id);
+        })
+        .catch((e) => {
+            res.status(404).send(FormController.printError(e));   
+        }); 
     }
 
     /**
      * Gets a single form by id
      */
     static getForm(req, res) {
-        FormHelper.getForm(req.params.id)
+        FormHelper.getForm(req.project, req.environment, req.params.id)
         .then((form) => {
             res.status(200).send(form.getObject());
         })
         .catch((e) => {
-            res.status(502).send(e.message);
+            res.status(502).send(FormsController.printError(e));
+        });
+    }
+    
+    /**
+     * Gets all entries from a Form as CSV
+     */
+    static getAllEntries(req, res) {
+        FormHelper.getForm(req.project, req.environment, req.params.id)
+        .then((form) => {
+            let csv = '';
+
+            for(let inputKey in form.inputs) {
+                csv += '"' + inputKey + '",';
+            }
+
+            // Remove last comma
+            csv = csv.slice(0, -1);
+            csv += '\r\n';
+
+            for(let entry of form.entries) {
+                for(let inputKey in form.inputs) {
+                    csv += '"' + (entry[inputKey] || ' ') + '",';
+                }
+                
+                // Remove last comma
+                csv = csv.slice(0, -1);
+                csv += '\r\n';
+            }
+
+            res.attachment('entries-' + form.id + '.csv');
+
+            res.status(200).send(csv);
+        })
+        .catch((e) => {
+            res.status(502).send(FormsController.printError(e));
         });
     }
     
@@ -85,12 +191,14 @@ class FormsController extends ApiController {
      * Sets a single form by id
      */
     static postForm(req, res) {
-        FormHelper.setForm(req.params.id, req.body)
+        let shouldCreate = req.query.create == 'true' || req.query.create == true;
+        
+        FormHelper.setForm(req.project, req.environment, req.params.id, req.body, shouldCreate)
         .then((form) => {
             res.status(200).send(form.getObject());
         })
         .catch((e) => {
-            res.status(502).send(e.message);
+            res.status(502).send(FormsController.printError(e));
         });
     }
 
@@ -98,12 +206,12 @@ class FormsController extends ApiController {
      * Creates a form
      */
     static postNew(req, res) {
-        FormHelper.createForm()
+        FormHelper.createForm(req.project, req.environment)
         .then((form) => {
             res.status(200).send(form.id);
         })
         .catch((e) => {
-            res.status(502).send(e.message);
+            res.status(502).send(FormsController.printError(e));
         });
     }
 
@@ -112,23 +220,50 @@ class FormsController extends ApiController {
      */
     static postSubmit(req, res) {
         // Prevent spam
-        if(Date.now() - lastSubmission >= SUBMISSION_TIMEOUT_MS) {
+        if(
+            lastIp != req.connection.remoteAddress || // This IP is not the same as the previous one
+            Date.now() - lastSubmission >= SUBMISSION_TIMEOUT_MS // Timeout has been reached
+        ) {
             lastSubmission = Date.now();
+            lastIp = req.connection.remoteAddress;
 
-            FormHelper.addEntry(req.params.id, req.body)
+            FormHelper.addEntry(req.project, req.environment, req.params.id, req.body)
             .then((form) => {
-                if(!form.redirect) {
-                    res.status(200).redirect(req.headers.referer);
+                if(form.redirect) {
+                    let redirectUrl = form.redirect;
+
+                    if(form.appendRedirect &amp;&amp; req.headers.referer) {
+                        redirectUrl = req.headers.referer + redirectUrl;
+                    }
+                    
+                    res.status(302).redirect(redirectUrl);
+                
                 } else {
-                    res.status(200).redirect(form.redirect);
+                    res.sendStatus(200);
+
                 }
             })
             .catch((e) => {
-                res.status(400).send(e.message);
+                res.status(400).send(FormsController.printError(e));
             });
+        
         } else {
-            res.status(400).send('Submission spam prevention timeout not yet passed');
+            res.status(400).send(ApiController.printError(new Error('Spam prevention triggered. Please try again later.')));
+        
         }
+    }
+
+    /**
+     * Clears all form entries
+     */
+    static postClearAllEntries(req, res) {
+        FormHelper.clearAllEntries(req.project, req.environment, req.params.id)
+        .then(() => {
+            res.sendStatus(200);
+        })
+        .catch((e) => {
+            res.status(502).send(ApiController.printError(e));
+        });
     }
 }
 
@@ -143,13 +278,13 @@ module.exports = FormsController;
 </div>
 
 <nav>
-    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="ApiController.html">ApiController</a></li><li><a href="ArrayEditor.html">ArrayEditor</a></li><li><a href="BooleanEditor.html">BooleanEditor</a></li><li><a href="Connection.html">Connection</a></li><li><a href="ConnectionController.html">ConnectionController</a></li><li><a href="Content.html">Content</a></li><li><a href="ContentController.html">ContentController</a></li><li><a href="ContentReferenceEditor.html">ContentReferenceEditor</a></li><li><a href="ContentSchema.html">ContentSchema</a></li><li><a href="ContentSchemaReferenceEditor.html">ContentSchemaReferenceEditor</a></li><li><a href="Controller.html">Controller</a></li><li><a href="DateEditor.html">DateEditor</a></li><li><a href="DropdownEditor.html">DropdownEditor</a></li><li><a href="Entity.html">Entity</a></li><li><a href="FieldSchema.html">FieldSchema</a></li><li><a href="Form.html">Form</a></li><li><a href="FormEditor.html">FormEditor</a></li><li><a href="JSONEditor.html">JSONEditor</a></li><li><a href="LanguageEditor.html">LanguageEditor</a></li><li><a href="LanguageSettings.html">LanguageSettings</a></li><li><a href="Media.html">Media</a></li><li><a href="MediaReferenceEditor.html">MediaReferenceEditor</a></li><li><a href="MessageModal.html">MessageModal</a></li><li><a href="NavbarMain.html">NavbarMain</a></li><li><a href="PeriodEditor.html">PeriodEditor</a></li><li><a href="ProjectHelper.html">ProjectHelper</a></li><li><a href="RichTextEditor.html">RichTextEditor</a></li><li><a href="Schema.html">Schema</a></li><li><a href="SchemaController.html">SchemaController</a></li><li><a href="SchemaEditor.html">SchemaEditor</a></li><li><a href="SchemaHelper.html">SchemaHelper</a></li><li><a href="StringEditor.html">StringEditor</a></li><li><a href="StructEditor.html">StructEditor</a></li><li><a href="TemplateReferenceEditor.html">TemplateReferenceEditor</a></li><li><a href="UrlEditor.html">UrlEditor</a></li><li><a href="UserHelper.html">UserHelper</a></li></ul>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="ApiController.html">ApiController</a></li><li><a href="AppHelper.html">AppHelper</a></li><li><a href="BackupHelper.html">BackupHelper</a></li><li><a href="BooleanEditor.html">BooleanEditor</a></li><li><a href="Connection.html">Connection</a></li><li><a href="ConnectionController.html">ConnectionController</a></li><li><a href="Content.html">Content</a></li><li><a href="ContentController.html">ContentController</a></li><li><a href="ContentReferenceEditor.html">ContentReferenceEditor</a></li><li><a href="ContentSchema.html">ContentSchema</a></li><li><a href="ContentSchemaReferenceEditor.html">ContentSchemaReferenceEditor</a></li><li><a href="Controller.html">Controller</a></li><li><a href="DateEditor.html">DateEditor</a></li><li><a href="DropdownEditor.html">DropdownEditor</a></li><li><a href="Entity.html">Entity</a></li><li><a href="FieldSchema.html">FieldSchema</a></li><li><a href="Form.html">Form</a></li><li><a href="FormEditor.html">FormEditor</a></li><li><a href="FormHelper.html">FormHelper</a></li><li><a href="InfoEditor.html">InfoEditor</a></li><li><a href="JSONEditor.html">JSONEditor</a></li><li><a href="LanguageEditor.html">LanguageEditor</a></li><li><a href="Media.html">Media</a></li><li><a href="MediaReferenceEditor.html">MediaReferenceEditor</a></li><li><a href="MessageModal.html">MessageModal</a></li><li><a href="MongoHelper.html">MongoHelper</a></li><li><a href="NavbarMain.html">NavbarMain</a></li><li><a href="NumberEditor.html">NumberEditor</a></li><li><a href="ProjectEditor.html">ProjectEditor</a></li><li><a href="ProjectHelper.html">ProjectHelper</a></li><li><a href="ProvidersSettings.html">ProvidersSettings</a></li><li><a href="RequestHelper.html">RequestHelper</a></li><li><a href="ResourceReferenceEditor.html">ResourceReferenceEditor</a></li><li><a href="RichTextEditor.html">RichTextEditor</a></li><li><a href="ScheduleController.html">ScheduleController</a></li><li><a href="ScheduleHelper.html">ScheduleHelper</a></li><li><a href="Schema.html">Schema</a></li><li><a href="SchemaController.html">SchemaController</a></li><li><a href="SchemaEditor.html">SchemaEditor</a></li><li><a href="SchemaHelper.html">SchemaHelper</a></li><li><a href="StringEditor.html">StringEditor</a></li><li><a href="StructEditor.html">StructEditor</a></li><li><a href="SyncEditor.html">SyncEditor</a></li><li><a href="SyncHelper.html">SyncHelper</a></li><li><a href="TagsEditor.html">TagsEditor</a></li><li><a href="Task.html">Task</a></li><li><a href="Template.html">Template</a></li><li><a href="TemplateEditor.html">TemplateEditor</a></li><li><a href="TemplateReferenceEditor.html">TemplateReferenceEditor</a></li><li><a href="UpdateHelper.html">UpdateHelper</a></li><li><a href="UrlEditor.html">UrlEditor</a></li><li><a href="UserHelper.html">UserHelper</a></li></ul>
 </nav>
 
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.0</a> on Mon Sep 05 2016 13:07:42 GMT+0200 (CEST)
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.3</a> on Mon May 29 2017 21:20:48 GMT+0200 (CEST)
 </footer>
 
 <script> prettyPrint(); </script>

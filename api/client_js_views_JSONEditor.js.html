@@ -41,10 +41,10 @@ class JSONEditor extends View {
     constructor(params) {
         super(params);
 
-        this.$element = _.div({class: 'json-editor flex-vertical'});
-        this.$error = _.div({class: 'panel panel-danger'},
-            _.div({class: 'panel-heading'}),
-            _.div({class: 'panel-body'})
+        this.$element = _.div({class: 'json-editor editor flex-vertical'});
+        this.$error = _.div({class: 'error'},
+            _.div({class: 'error-heading'}),
+            _.div({class: 'error-body'})
         ).hide();
 
         if(!this.model &amp;&amp; !this.modelUrl) {
@@ -52,20 +52,6 @@ class JSONEditor extends View {
         }
 
         this.fetch();
-    }
-
-    /**
-     * Event: Successful API call
-     */
-    onSuccess() {
-    
-    }
-
-    /**
-     * Event: Failed API call
-     */
-    onError(e) {
-        alert(e);
     }
 
     /**
@@ -86,19 +72,18 @@ class JSONEditor extends View {
      */
     onClickSave() {
         let view = this;
+        
+        this.$saveBtn.toggleClass('working', true);
 
         if(this.debug()) {
             apiCall('post', this.apiPath, this.model)
-            .then(this.onSuccess)
-            .catch(this.onError);
+            .then(() => {
+                this.$saveBtn.toggleClass('working', false);
+            })
+            .catch(UI.errorModal);
        
         } else {
-            new MessageModal({
-                model: {
-                    title: 'Unable to save',
-                    body: 'Please refer to the error prompt for details'
-                }
-            });
+            UI.errorModal('Unable to save', 'Please refer to the error prompt for details');
 
         }
     }
@@ -112,8 +97,8 @@ class JSONEditor extends View {
             this.$element.find('textarea').val(this.value);
         
         } catch(e) {
-            this.$error.children('.panel-heading').html('JSON error');
-            this.$error.children('.panel-body').html(e);
+            this.$error.children('.error-heading').html('JSON error');
+            this.$error.children('.error-body').html(e);
             this.$error.show();
 
         }
@@ -121,12 +106,16 @@ class JSONEditor extends View {
 
     /**
      * Debug the JSON string
+     *
+     * @param {Boolean} fromModel
      */
-    debug() {
+    debug(fromModel) {
         let isValid = true;
         
         // Function for checking model integrity
         let check = (k, v) => {
+            if(!v) { return; }
+
             switch(k) {
                 case 'schemaId': case 'parentSchemaId':
                     for(let id in resources.schemas) {
@@ -185,31 +174,64 @@ class JSONEditor extends View {
 
                 case 'template':
                     if(typeof v === 'string') {
-                        for(let id of resources.templates) {
-                            if(id == v) {
+                        for(let template of resources.templates) {
+                            if(template.id == v) {
                                 return;
                             }
                         }   
                         
-                        for(let id of resources.sectionTemplates) {
-                            if(id == v) {
-                                return;
-                            }
-                        }   
-
                         return 'Template "' + v + '" not found';
                     }
 
                     break;
 
                 case 'config':
-                    if(v.allowedTemplates) {
-                        let invalidTemplates = v.allowedTemplates.slice(0);
-                        let resource = resources[(v.resource || 'templates')];
+                    // Backward compatibility adjustment for template configs
+                    if(v.resource) {
+                        switch(v.resource) {
+                            case 'partialTemplates':
+                            case 'sectionTemplates':
+                                v.type = 'partial';
+                                delete v.resource;
+                                break;
+                            
+                            case 'templates':
+                                v.type = 'page';
+                                delete v.resource;
+                                break;
+                        }
+                    }
 
-                        for(let r in resource) {
+                    // Allowed templates config
+                    if(v.allowedTemplates) {
+                        // Assume that all templates are invalid
+                        let invalidTemplates = v.allowedTemplates.slice(0);
+
+                        // Backwards compatibility adjustment
+                        if(v.resource) {
+                            if(v.resource == 'partialTemplates' || v.resource == 'sectionTemplates') {
+                                v.type = 'partial';
+                            } else {
+                                v.type = 'page';
+                            }
+
+                            delete v.resource;
+                        }
+
+                        // Sanity check for type
+                        if(!v.type) {
+                            v.type = 'page';
+                        }
+
+                        // Loop through all available templates
+                        for(let existingTemplate of resources.templates) {
                             for(let a = invalidTemplates.length - 1; a >= 0; a--) {
-                                if(resource[r] == invalidTemplates[a]) {
+
+                                // If a template was found, and it's of the correct type, remove it from the invalid templates array
+                                if(
+                                    existingTemplate.type == v.type &amp;&amp;
+                                    existingTemplate.id == invalidTemplates[a]
+                                ) {
                                     invalidTemplates.splice(a, 1);
                                 }
                             }   
@@ -217,9 +239,9 @@ class JSONEditor extends View {
 
                         if(invalidTemplates.length > 0) {
                             if(invalidTemplates.length == 1) {
-                                return 'Template "' + invalidTemplates[0] + '" not found';
+                                return 'Template "' + invalidTemplates[0] + '" of type "' + v.type + '" not found';
                             } else {
-                                return 'Templates "' + invalidTemplates.join(', ') + '" not found';
+                                return 'Templates "' + invalidTemplates.join(', ') + '" of type "' + v.type + '" not found';
                             }
                         }
                     }
@@ -239,8 +261,8 @@ class JSONEditor extends View {
                     let failMessage = check(k, v);
                     
                     if(failMessage) {
-                        this.$error.children('.panel-heading').html('Schema error');
-                        this.$error.children('.panel-body').html(failMessage);
+                        this.$error.children('.error-heading').html('Input error');
+                        this.$error.children('.error-body').html(failMessage);
                         this.$error.show();
                     
                         isValid = false;
@@ -256,18 +278,22 @@ class JSONEditor extends View {
 
         // Syntax check
         try {
-            this.model = JSON.parse(this.value);
+            if(!fromModel) {
+                this.model = JSON.parse(this.value);
+            }
+            
+            // Sanity check
+            recurse(this.model);
 
         } catch(e) {
-            this.$error.children('.panel-heading').html('JSON error');
-            this.$error.children('.panel-body').html(e);
+            this.$error.children('.error-heading').html('Syntax error');
+            this.$error.children('.error-body').html(e);
             this.$error.show();
 
             isValid = false;
         }
 
-        // Integrity check
-        recurse(this.model);
+        this.isValid = isValid;
 
         return isValid;
     }
@@ -276,50 +302,65 @@ class JSONEditor extends View {
      * Event: Change text. Make sure the value is up to date
      */
     onChangeText() {
-        this.value = this.$element.find('textarea').val();
+        this.value = this.editor.getDoc().getValue();
 
-        let $lineNumbers = this.$element.find('.line-numbers');
-
-        $lineNumbers.empty();
-
-        for(let i = 0; i &lt; this.value.split(/\r\n|\r|\n/).length; i++) {
-            $lineNumbers.append(i + '&lt;br />');
+        if(this.debug()) {
+            this.trigger('change', this.model);
         }
-
-        this.debug();
     }
 
     render() {
+        // Debug once before entering into the code editor
+        // This allows for backward compatibility adjustments to happen first
+        this.debug(true);
+
+        // Convert the model to a string value
         this.value = beautify(JSON.stringify(this.model));
 
-        this.$element.html([
-            _.div({class: 'editor-container'},
-                _.div({class: 'line-numbers'}),
-                _.textarea({class: 'flex-expand', disabled: this.model.locked},
-                    this.value
-                )
-                .on('keydown', (e) => { if(e.which == 9) { e.preventDefault(); return false; } })
-                .on('keyup change propertychange paste', (e) => { return this.onChangeText(); }),
-                this.$error,
-                _.button({class: 'btn btn-round btn-raised btn-prettify'},
-                    '{ }'
-                ).click(() => { this.onClickBeautify(); })
+        _.append(this.$element.empty(),
+            _.div({class: 'editor-body'},
+                this.$textarea = _.textarea(),
+                this.$error
             ),
-            _.div({class: 'panel panel-default panel-buttons'}, 
-                _.div({class: 'btn-group'},
-                    _.button({class: 'btn btn-embedded'},
-                        'Basic'
-                    ).click(() => { this.onClickBasic(); }),
-                    _.if(!this.model.locked,
-                        _.button({class: 'btn btn-raised btn-success'},
-                            'Save '
-                        ).click(() => { this.onClickSave(); })
+            _.if(!this.embedded,
+                _.div({class: 'editor-footer'}, 
+                    _.div({class: 'btn-group'},
+                        _.button({class: 'btn btn-embedded'},
+                            'Basic'
+                        ).click(() => { this.onClickBasic(); }),
+                        _.if(!this.model.locked,
+                            this.$saveBtn = _.button({class: 'btn btn-raised btn-primary'},
+                                _.span({class: 'text-default'}, 'Save'),
+                                _.span({class: 'text-working'}, 'Saving')
+                            ).click(() => { this.onClickSave(); })
+                        )
                     )
                 )
             )
-        ]);
+        );
 
-        this.onChangeText();
+        setTimeout(() => {
+            this.editor = CodeMirror.fromTextArea(this.$textarea[0], {
+                lineNumbers: true,
+                mode: {
+                    name: 'javascript',
+                    json: true
+                },
+                viewportMargin: this.embedded ? Infinity : 10,
+                tabSize: 4,
+                lineWrapping: this.embedded,
+                indentUnit: 4,
+                indentWithTabs: true,
+                theme: getCookie('cmtheme') || 'default',
+                value: this.value
+            });
+
+            this.editor.getDoc().setValue(this.value);
+
+            this.editor.on('change', () => { this.onChangeText(); });
+
+            this.onChangeText();
+        }, 1);
     }
 }
 
@@ -334,13 +375,13 @@ module.exports = JSONEditor;
 </div>
 
 <nav>
-    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="ApiController.html">ApiController</a></li><li><a href="ArrayEditor.html">ArrayEditor</a></li><li><a href="BooleanEditor.html">BooleanEditor</a></li><li><a href="Connection.html">Connection</a></li><li><a href="ConnectionController.html">ConnectionController</a></li><li><a href="Content.html">Content</a></li><li><a href="ContentController.html">ContentController</a></li><li><a href="ContentReferenceEditor.html">ContentReferenceEditor</a></li><li><a href="ContentSchema.html">ContentSchema</a></li><li><a href="ContentSchemaReferenceEditor.html">ContentSchemaReferenceEditor</a></li><li><a href="Controller.html">Controller</a></li><li><a href="DateEditor.html">DateEditor</a></li><li><a href="DropdownEditor.html">DropdownEditor</a></li><li><a href="Entity.html">Entity</a></li><li><a href="FieldSchema.html">FieldSchema</a></li><li><a href="Form.html">Form</a></li><li><a href="FormEditor.html">FormEditor</a></li><li><a href="JSONEditor.html">JSONEditor</a></li><li><a href="LanguageEditor.html">LanguageEditor</a></li><li><a href="LanguageSettings.html">LanguageSettings</a></li><li><a href="Media.html">Media</a></li><li><a href="MediaReferenceEditor.html">MediaReferenceEditor</a></li><li><a href="MessageModal.html">MessageModal</a></li><li><a href="NavbarMain.html">NavbarMain</a></li><li><a href="PeriodEditor.html">PeriodEditor</a></li><li><a href="ProjectHelper.html">ProjectHelper</a></li><li><a href="RichTextEditor.html">RichTextEditor</a></li><li><a href="Schema.html">Schema</a></li><li><a href="SchemaController.html">SchemaController</a></li><li><a href="SchemaEditor.html">SchemaEditor</a></li><li><a href="SchemaHelper.html">SchemaHelper</a></li><li><a href="StringEditor.html">StringEditor</a></li><li><a href="StructEditor.html">StructEditor</a></li><li><a href="TemplateReferenceEditor.html">TemplateReferenceEditor</a></li><li><a href="UrlEditor.html">UrlEditor</a></li><li><a href="UserHelper.html">UserHelper</a></li></ul>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="ApiController.html">ApiController</a></li><li><a href="AppHelper.html">AppHelper</a></li><li><a href="BackupHelper.html">BackupHelper</a></li><li><a href="BooleanEditor.html">BooleanEditor</a></li><li><a href="Connection.html">Connection</a></li><li><a href="ConnectionController.html">ConnectionController</a></li><li><a href="Content.html">Content</a></li><li><a href="ContentController.html">ContentController</a></li><li><a href="ContentReferenceEditor.html">ContentReferenceEditor</a></li><li><a href="ContentSchema.html">ContentSchema</a></li><li><a href="ContentSchemaReferenceEditor.html">ContentSchemaReferenceEditor</a></li><li><a href="Controller.html">Controller</a></li><li><a href="DateEditor.html">DateEditor</a></li><li><a href="DropdownEditor.html">DropdownEditor</a></li><li><a href="Entity.html">Entity</a></li><li><a href="FieldSchema.html">FieldSchema</a></li><li><a href="Form.html">Form</a></li><li><a href="FormEditor.html">FormEditor</a></li><li><a href="FormHelper.html">FormHelper</a></li><li><a href="InfoEditor.html">InfoEditor</a></li><li><a href="JSONEditor.html">JSONEditor</a></li><li><a href="LanguageEditor.html">LanguageEditor</a></li><li><a href="Media.html">Media</a></li><li><a href="MediaReferenceEditor.html">MediaReferenceEditor</a></li><li><a href="MessageModal.html">MessageModal</a></li><li><a href="MongoHelper.html">MongoHelper</a></li><li><a href="NavbarMain.html">NavbarMain</a></li><li><a href="NumberEditor.html">NumberEditor</a></li><li><a href="ProjectEditor.html">ProjectEditor</a></li><li><a href="ProjectHelper.html">ProjectHelper</a></li><li><a href="ProvidersSettings.html">ProvidersSettings</a></li><li><a href="RequestHelper.html">RequestHelper</a></li><li><a href="ResourceReferenceEditor.html">ResourceReferenceEditor</a></li><li><a href="RichTextEditor.html">RichTextEditor</a></li><li><a href="ScheduleController.html">ScheduleController</a></li><li><a href="ScheduleHelper.html">ScheduleHelper</a></li><li><a href="Schema.html">Schema</a></li><li><a href="SchemaController.html">SchemaController</a></li><li><a href="SchemaEditor.html">SchemaEditor</a></li><li><a href="SchemaHelper.html">SchemaHelper</a></li><li><a href="StringEditor.html">StringEditor</a></li><li><a href="StructEditor.html">StructEditor</a></li><li><a href="SyncEditor.html">SyncEditor</a></li><li><a href="SyncHelper.html">SyncHelper</a></li><li><a href="TagsEditor.html">TagsEditor</a></li><li><a href="Task.html">Task</a></li><li><a href="Template.html">Template</a></li><li><a href="TemplateEditor.html">TemplateEditor</a></li><li><a href="TemplateReferenceEditor.html">TemplateReferenceEditor</a></li><li><a href="UpdateHelper.html">UpdateHelper</a></li><li><a href="UrlEditor.html">UrlEditor</a></li><li><a href="UserHelper.html">UserHelper</a></li></ul>
 </nav>
 
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.0</a> on Mon Sep 05 2016 13:07:42 GMT+0200 (CEST)
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.3</a> on Mon May 29 2017 21:20:48 GMT+0200 (CEST)
 </footer>
 
 <script> prettyPrint(); </script>

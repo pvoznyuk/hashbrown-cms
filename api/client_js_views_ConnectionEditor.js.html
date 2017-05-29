@@ -70,59 +70,10 @@ class ConnectionEditor extends View {
         apiCall('post', 'connections/' + view.model.id, view.model)
         .then(() => {
             view.$saveBtn.toggleClass('saving', false);
-        
-            reloadResource('connections')
-            .then(function() {
-                let navbar = ViewHelper.get('NavbarMain');
-
-                view.reload();
-                navbar.reload();
-            });
+       
+            location.reload(); 
         })
         .catch(this.onError);
-    }
-
-    /**
-     * Event: On click remove
-     */
-    onClickDelete() {
-        let view = this;
-
-        function onSuccess() {
-            debug.log('Removed connection with id "' + view.model.id + '"', this); 
-        
-            reloadResource('connection')
-            .then(function() {
-                ViewHelper.get('NavbarMain').reload();
-                
-                // Cancel the ConnectionEditor view
-                location.hash = '/connections/';
-            });
-        }
-
-        new MessageModal({
-            model: {
-                title: 'Delete connection',
-                body: 'Are you sure you want to delete the connection "' + view.model.title + '"?'
-            },
-            buttons: [
-                {
-                    label: 'Cancel',
-                    class: 'btn-default',
-                    callback: function() {
-                    }
-                },
-                {
-                    label: 'OK',
-                    class: 'btn-danger',
-                    callback: function() {
-                        apiCall('delete', 'connections/' + view.model.id)
-                        .then(onSuccess)
-                        .catch(this.onError);
-                    }
-                }
-            ]
-        });
     }
 
     /**
@@ -147,7 +98,7 @@ class ConnectionEditor extends View {
         } 
 
         let $editor = _.div({class: 'field-editor string-editor'},
-            _.input({class: 'form-control', value: this.model.title})
+            _.input({class: 'form-control', value: this.model.title, type: 'text'})
                 .change(onChange)
         );
 
@@ -155,50 +106,23 @@ class ConnectionEditor extends View {
     }
     
     /**
-     * Renders the template provider editor
+     * Renders the URL editor
      */
-    renderTemplateProviderEditor() {
+    renderUrlEditor() {
         let view = this;
 
         function onChange() {
-            view.model.provideTemplates = this.checked;
+            view.model.url = $(this).val();
         } 
 
-        let switchId = 'switch-provide-templates';
-
-        let $editor = _.div({class: 'field-editor switch-editor'},
-            _.div({class: 'switch'},
-                _.input({id: switchId, class: 'form-control switch', type: 'checkbox', checked: this.model.provideTemplates})
-                    .change(onChange),
-                _.label({for: switchId})
-            )
+        let $editor = _.div({class: 'field-editor string-editor'},
+            _.input({class: 'form-control', value: this.model.url, type: 'text', placeholder: 'Input the remote URL here, e.g. http://awesomeproject.com'})
+                .change(onChange)
         );
 
         return $editor;
     }
     
-    /**
-     * Renders the media provider editor
-     */
-    renderMediaProviderEditor() {
-        let view = this;
-
-        function onChange() {
-            view.model.provideMedia = this.checked;
-        } 
-
-        let switchId = 'switch-provide-media';
-
-        let $editor = _.div({class: 'field-editor switch-editor'},
-            _.div({class: 'switch'},
-                _.input({id: switchId, class: 'form-control switch', type: 'checkbox', checked: this.model.provideMedia})
-                    .change(onChange),
-                _.label({for: switchId})
-            )
-        );
-
-        return $editor;
-    }
     
     /**
      * Renders the settings editor
@@ -217,6 +141,7 @@ class ConnectionEditor extends View {
 
         } else {
             debug.log('No connection editor found for type alias "' + this.model.type + '"', this);
+            return '';
 
         }
     }
@@ -225,27 +150,28 @@ class ConnectionEditor extends View {
      * Renders the type editor
      */
     renderTypeEditor() {
-        let view = this;
-
-        function onChange() {
-            let type = $(this).val();
+        // Generate dropdown options
+        let dropdownOptions = [];
         
-            view.model.type = type;
-
-            view.$element.find('.connection-settings .field-value').html(
-                view.renderSettingsEditor()
-            );
+        for(let label in resources.connectionEditors || []) {
+            let option = resources.connectionEditors[label];
+            
+            dropdownOptions[dropdownOptions.length] = {
+                label: label,
+                value: label,
+                selected: label == this.model.type
+            };
         }
 
         let $editor = _.div({class: 'field-editor dropdown-editor'},
-            _.select({class: 'form-control'},
-                _.each(resources.connectionEditors, function(alias, editor) {
-                    return _.option({value: alias}, alias);
-                })
-            ).change(onChange)
-        );
+            UI.inputDropdown('(none)', dropdownOptions, (newValue) => {
+                this.model.type = newValue;
 
-        $editor.children('select').val(this.model.type);
+                this.$element.find('.connection-settings .field-value').html(
+                    this.renderSettingsEditor()
+                );
+            }, true)
+        );
 
         return $editor;
     }
@@ -253,31 +179,30 @@ class ConnectionEditor extends View {
     render() {
         let view = this;
 
+        this.$element.toggleClass('locked', this.model.locked);
         this.$element.html(
             _.div({class: 'object'},
-                _.div({class: 'tab-content'},
+                _.div({class: 'editor-header'},
+                    _.span({class: 'fa fa-exchange'}),
+                    _.h4(this.model.title)
+                ),
+                _.div({class: 'tab-content editor-body'},
                     _.div({class: 'field-container connection-title'},
                         _.div({class: 'field-key'}, 'Title'),
                         _.div({class: 'field-value'},
                             this.renderTitleEditor()
                         )
                     ),
+                    _.div({class: 'field-container connection-url'},
+                        _.div({class: 'field-key'}, 'URL'),
+                        _.div({class: 'field-value'},
+                            this.renderUrlEditor()
+                        )
+                    ),
                     _.div({class: 'field-container connection-type'},
                         _.div({class: 'field-key'}, 'Type'),
                         _.div({class: 'field-value'},
                             this.renderTypeEditor()
-                        )
-                    ),
-                    _.div({class: 'field-container template-provider'},
-                        _.div({class: 'field-key'}, 'Provide templates'),
-                        _.div({class: 'field-value'},
-                            this.renderTemplateProviderEditor()
-                        )
-                    ),
-                    _.div({class: 'field-container media-provider'},
-                        _.div({class: 'field-key'}, 'Provide media'),
-                        _.div({class: 'field-value'},
-                            this.renderMediaProviderEditor()
                         )
                     ),
                     _.div({class: 'field-container connection-settings'},
@@ -287,18 +212,17 @@ class ConnectionEditor extends View {
                         )
                     )
                 ),
-                _.div({class: 'panel panel-default panel-buttons'}, 
+                _.div({class: 'editor-footer'}, 
                     _.div({class: 'btn-group'},
                         _.button({class: 'btn btn-embedded'},
                             'Advanced'
                         ).click(function() { view.onClickAdvanced(); }),
-                        _.button({class: 'btn btn-danger btn-raised'},
-                            'Delete'
-                        ).click(function() { view.onClickDelete(); }),
-                        view.$saveBtn = _.button({class: 'btn btn-success btn-raised btn-save'},
-                            _.span({class: 'text-default'}, 'Save '),
-                            _.span({class: 'text-working'}, 'Saving ')
-                        ).click(function() { view.onClickSave(); })
+                        _.if(!this.model.locked, 
+                            view.$saveBtn = _.button({class: 'btn btn-primary btn-raised btn-save'},
+                                _.span({class: 'text-default'}, 'Save '),
+                                _.span({class: 'text-working'}, 'Saving ')
+                            ).click(function() { view.onClickSave(); })
+                        )
                     )
                 )
             )
@@ -317,13 +241,13 @@ module.exports = ConnectionEditor;
 </div>
 
 <nav>
-    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="ApiController.html">ApiController</a></li><li><a href="ArrayEditor.html">ArrayEditor</a></li><li><a href="BooleanEditor.html">BooleanEditor</a></li><li><a href="Connection.html">Connection</a></li><li><a href="ConnectionController.html">ConnectionController</a></li><li><a href="Content.html">Content</a></li><li><a href="ContentController.html">ContentController</a></li><li><a href="ContentReferenceEditor.html">ContentReferenceEditor</a></li><li><a href="ContentSchema.html">ContentSchema</a></li><li><a href="ContentSchemaReferenceEditor.html">ContentSchemaReferenceEditor</a></li><li><a href="Controller.html">Controller</a></li><li><a href="DateEditor.html">DateEditor</a></li><li><a href="DropdownEditor.html">DropdownEditor</a></li><li><a href="Entity.html">Entity</a></li><li><a href="FieldSchema.html">FieldSchema</a></li><li><a href="Form.html">Form</a></li><li><a href="FormEditor.html">FormEditor</a></li><li><a href="JSONEditor.html">JSONEditor</a></li><li><a href="LanguageEditor.html">LanguageEditor</a></li><li><a href="LanguageSettings.html">LanguageSettings</a></li><li><a href="Media.html">Media</a></li><li><a href="MediaReferenceEditor.html">MediaReferenceEditor</a></li><li><a href="MessageModal.html">MessageModal</a></li><li><a href="NavbarMain.html">NavbarMain</a></li><li><a href="PeriodEditor.html">PeriodEditor</a></li><li><a href="ProjectHelper.html">ProjectHelper</a></li><li><a href="RichTextEditor.html">RichTextEditor</a></li><li><a href="Schema.html">Schema</a></li><li><a href="SchemaController.html">SchemaController</a></li><li><a href="SchemaEditor.html">SchemaEditor</a></li><li><a href="SchemaHelper.html">SchemaHelper</a></li><li><a href="StringEditor.html">StringEditor</a></li><li><a href="StructEditor.html">StructEditor</a></li><li><a href="TemplateReferenceEditor.html">TemplateReferenceEditor</a></li><li><a href="UrlEditor.html">UrlEditor</a></li><li><a href="UserHelper.html">UserHelper</a></li></ul>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="ApiController.html">ApiController</a></li><li><a href="AppHelper.html">AppHelper</a></li><li><a href="BackupHelper.html">BackupHelper</a></li><li><a href="BooleanEditor.html">BooleanEditor</a></li><li><a href="Connection.html">Connection</a></li><li><a href="ConnectionController.html">ConnectionController</a></li><li><a href="Content.html">Content</a></li><li><a href="ContentController.html">ContentController</a></li><li><a href="ContentReferenceEditor.html">ContentReferenceEditor</a></li><li><a href="ContentSchema.html">ContentSchema</a></li><li><a href="ContentSchemaReferenceEditor.html">ContentSchemaReferenceEditor</a></li><li><a href="Controller.html">Controller</a></li><li><a href="DateEditor.html">DateEditor</a></li><li><a href="DropdownEditor.html">DropdownEditor</a></li><li><a href="Entity.html">Entity</a></li><li><a href="FieldSchema.html">FieldSchema</a></li><li><a href="Form.html">Form</a></li><li><a href="FormEditor.html">FormEditor</a></li><li><a href="FormHelper.html">FormHelper</a></li><li><a href="InfoEditor.html">InfoEditor</a></li><li><a href="JSONEditor.html">JSONEditor</a></li><li><a href="LanguageEditor.html">LanguageEditor</a></li><li><a href="Media.html">Media</a></li><li><a href="MediaReferenceEditor.html">MediaReferenceEditor</a></li><li><a href="MessageModal.html">MessageModal</a></li><li><a href="MongoHelper.html">MongoHelper</a></li><li><a href="NavbarMain.html">NavbarMain</a></li><li><a href="NumberEditor.html">NumberEditor</a></li><li><a href="ProjectEditor.html">ProjectEditor</a></li><li><a href="ProjectHelper.html">ProjectHelper</a></li><li><a href="ProvidersSettings.html">ProvidersSettings</a></li><li><a href="RequestHelper.html">RequestHelper</a></li><li><a href="ResourceReferenceEditor.html">ResourceReferenceEditor</a></li><li><a href="RichTextEditor.html">RichTextEditor</a></li><li><a href="ScheduleController.html">ScheduleController</a></li><li><a href="ScheduleHelper.html">ScheduleHelper</a></li><li><a href="Schema.html">Schema</a></li><li><a href="SchemaController.html">SchemaController</a></li><li><a href="SchemaEditor.html">SchemaEditor</a></li><li><a href="SchemaHelper.html">SchemaHelper</a></li><li><a href="StringEditor.html">StringEditor</a></li><li><a href="StructEditor.html">StructEditor</a></li><li><a href="SyncEditor.html">SyncEditor</a></li><li><a href="SyncHelper.html">SyncHelper</a></li><li><a href="TagsEditor.html">TagsEditor</a></li><li><a href="Task.html">Task</a></li><li><a href="Template.html">Template</a></li><li><a href="TemplateEditor.html">TemplateEditor</a></li><li><a href="TemplateReferenceEditor.html">TemplateReferenceEditor</a></li><li><a href="UpdateHelper.html">UpdateHelper</a></li><li><a href="UrlEditor.html">UrlEditor</a></li><li><a href="UserHelper.html">UserHelper</a></li></ul>
 </nav>
 
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.0</a> on Mon Sep 05 2016 13:07:42 GMT+0200 (CEST)
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.3</a> on Mon May 29 2017 21:20:48 GMT+0200 (CEST)
 </footer>
 
 <script> prettyPrint(); </script>

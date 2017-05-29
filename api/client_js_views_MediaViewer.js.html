@@ -35,58 +35,9 @@ class MediaViewer extends View {
     constructor(params) {
         super(params);
         
-        this.$element = _.div({class: 'media-viewer'});
+        this.$element = _.div({class: 'editor media-viewer'});
 
         this.fetch();
-    }
-
-    /**
-     * Event: Click delete
-     */
-    onClickDelete() {
-        let view = this;        
-        let id = this.model.id;
-        let name = this.model.name;
-        
-        function onSuccess() {
-            debug.log('Removed media with id "' + id + '"', view); 
-        
-            reloadResource('media')
-            .then(function() {
-                ViewHelper.get('NavbarMain').reload();
-                
-                // Cancel the MediaViever view if it was displaying the deleted object
-                if(location.hash == '#/media/' + id) {
-                    location.hash = '/media/';
-                }
-            });
-        }
-
-        new MessageModal({
-            model: {
-                title: 'Delete media',
-                body: 'Are you sure you want to delete the media object "' + name + '"?'
-            },
-            buttons: [
-                {
-                    label: 'Cancel',
-                    class: 'btn-default',
-                    callback: function() {
-                    }
-                },
-                {
-                    label: 'OK',
-                    class: 'btn-danger',
-                    callback: function() {
-                        $.ajax({
-                            url: apiUrl('media/' + id),
-                            type: 'DELETE',
-                            success: onSuccess
-                        });
-                    }
-                }
-            ]
-        });
     }
 
     /**
@@ -102,43 +53,42 @@ class MediaViewer extends View {
                 id: this.model.id,
                 folder: newFolder
             } : null
-        ).then(() => {
-            reloadResource('media')
-            .then(() => {
-                ViewHelper.get('NavbarMain').reload();
-            })
-            .catch(errorModal);
+        )
+        .then(() => {
+            return reloadResource('media');
+        })
+        .then(() => {
+            ViewHelper.get('NavbarMain').reload();
         })
         .catch(errorModal);
     }
 
     render() {
-        let view = this;
-        let imgSrc = '/media/' + ProjectHelper.currentProject + '/' + ProjectHelper.currentEnvironment + '/' + view.model.id;
+        this.model = new Media(this.model);        
+
+        let mediaSrc = '/media/' + ProjectHelper.currentProject + '/' + ProjectHelper.currentEnvironment + '/' + this.model.id;
 
         this.$element.empty().append(
-            _.div({class: 'media-heading'},
-                _.h4({class: 'media-title'}, this.model.name),
-                _.p({class: 'media-data'})
-            ),
-            _.div({class: 'media-preview'},
-                _.img({class: 'img-responsive', src: imgSrc}).on('load', function() {
-                    let img = new Image();
-                    img.src = imgSrc;
-
-                    view.$element.find('.media-data').html(
-                        '(' + img.width + 'x' + img.height + ')'
-                    );
-                })
-            ),
-            _.div({class: 'panel panel-default panel-buttons'}, 
-                _.input({class: 'form-control', value: this.model.folder, placeholder: 'Type folder path here'})
-                    .change(function() { view.onChangeFolder($(this).val()); }),
-                _.div({class: 'btn-group'},
-                    _.button({class: 'btn btn-danger btn-raised'},
-                        'Delete'
-                    ).click(function() { view.onClickDelete(); })
+            _.div({class: 'editor-header media-heading'},
+                _.span({class: 'fa fa-file-image-o'}),
+                _.h4({class: 'media-title'},
+                    this.model.name,
+                    _.span({class: 'media-data'},
+                        this.model.getContentTypeHeader()    
+                    )
                 )
+            ),
+            _.div({class: 'media-preview editor-body'},
+                _.if(this.model.isImage(),
+                    _.img({src: mediaSrc})
+                ),
+                _.if(this.model.isVideo(),
+                    _.video({controls: true, src: mediaSrc})
+                )
+            ),
+            _.div({class: 'editor-footer'}, 
+                _.input({class: 'form-control', value: this.model.folder, placeholder: 'Type folder path here'})
+                    .change((e) => { this.onChangeFolder($(e.target).val()); })
             )
         );
     }
@@ -155,13 +105,13 @@ module.exports = MediaViewer;
 </div>
 
 <nav>
-    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="ApiController.html">ApiController</a></li><li><a href="ArrayEditor.html">ArrayEditor</a></li><li><a href="BooleanEditor.html">BooleanEditor</a></li><li><a href="Connection.html">Connection</a></li><li><a href="ConnectionController.html">ConnectionController</a></li><li><a href="Content.html">Content</a></li><li><a href="ContentController.html">ContentController</a></li><li><a href="ContentReferenceEditor.html">ContentReferenceEditor</a></li><li><a href="ContentSchema.html">ContentSchema</a></li><li><a href="ContentSchemaReferenceEditor.html">ContentSchemaReferenceEditor</a></li><li><a href="Controller.html">Controller</a></li><li><a href="DateEditor.html">DateEditor</a></li><li><a href="DropdownEditor.html">DropdownEditor</a></li><li><a href="Entity.html">Entity</a></li><li><a href="FieldSchema.html">FieldSchema</a></li><li><a href="Form.html">Form</a></li><li><a href="FormEditor.html">FormEditor</a></li><li><a href="JSONEditor.html">JSONEditor</a></li><li><a href="LanguageEditor.html">LanguageEditor</a></li><li><a href="LanguageSettings.html">LanguageSettings</a></li><li><a href="Media.html">Media</a></li><li><a href="MediaReferenceEditor.html">MediaReferenceEditor</a></li><li><a href="MessageModal.html">MessageModal</a></li><li><a href="NavbarMain.html">NavbarMain</a></li><li><a href="PeriodEditor.html">PeriodEditor</a></li><li><a href="ProjectHelper.html">ProjectHelper</a></li><li><a href="RichTextEditor.html">RichTextEditor</a></li><li><a href="Schema.html">Schema</a></li><li><a href="SchemaController.html">SchemaController</a></li><li><a href="SchemaEditor.html">SchemaEditor</a></li><li><a href="SchemaHelper.html">SchemaHelper</a></li><li><a href="StringEditor.html">StringEditor</a></li><li><a href="StructEditor.html">StructEditor</a></li><li><a href="TemplateReferenceEditor.html">TemplateReferenceEditor</a></li><li><a href="UrlEditor.html">UrlEditor</a></li><li><a href="UserHelper.html">UserHelper</a></li></ul>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="ApiController.html">ApiController</a></li><li><a href="AppHelper.html">AppHelper</a></li><li><a href="BackupHelper.html">BackupHelper</a></li><li><a href="BooleanEditor.html">BooleanEditor</a></li><li><a href="Connection.html">Connection</a></li><li><a href="ConnectionController.html">ConnectionController</a></li><li><a href="Content.html">Content</a></li><li><a href="ContentController.html">ContentController</a></li><li><a href="ContentReferenceEditor.html">ContentReferenceEditor</a></li><li><a href="ContentSchema.html">ContentSchema</a></li><li><a href="ContentSchemaReferenceEditor.html">ContentSchemaReferenceEditor</a></li><li><a href="Controller.html">Controller</a></li><li><a href="DateEditor.html">DateEditor</a></li><li><a href="DropdownEditor.html">DropdownEditor</a></li><li><a href="Entity.html">Entity</a></li><li><a href="FieldSchema.html">FieldSchema</a></li><li><a href="Form.html">Form</a></li><li><a href="FormEditor.html">FormEditor</a></li><li><a href="FormHelper.html">FormHelper</a></li><li><a href="InfoEditor.html">InfoEditor</a></li><li><a href="JSONEditor.html">JSONEditor</a></li><li><a href="LanguageEditor.html">LanguageEditor</a></li><li><a href="Media.html">Media</a></li><li><a href="MediaReferenceEditor.html">MediaReferenceEditor</a></li><li><a href="MessageModal.html">MessageModal</a></li><li><a href="MongoHelper.html">MongoHelper</a></li><li><a href="NavbarMain.html">NavbarMain</a></li><li><a href="NumberEditor.html">NumberEditor</a></li><li><a href="ProjectEditor.html">ProjectEditor</a></li><li><a href="ProjectHelper.html">ProjectHelper</a></li><li><a href="ProvidersSettings.html">ProvidersSettings</a></li><li><a href="RequestHelper.html">RequestHelper</a></li><li><a href="ResourceReferenceEditor.html">ResourceReferenceEditor</a></li><li><a href="RichTextEditor.html">RichTextEditor</a></li><li><a href="ScheduleController.html">ScheduleController</a></li><li><a href="ScheduleHelper.html">ScheduleHelper</a></li><li><a href="Schema.html">Schema</a></li><li><a href="SchemaController.html">SchemaController</a></li><li><a href="SchemaEditor.html">SchemaEditor</a></li><li><a href="SchemaHelper.html">SchemaHelper</a></li><li><a href="StringEditor.html">StringEditor</a></li><li><a href="StructEditor.html">StructEditor</a></li><li><a href="SyncEditor.html">SyncEditor</a></li><li><a href="SyncHelper.html">SyncHelper</a></li><li><a href="TagsEditor.html">TagsEditor</a></li><li><a href="Task.html">Task</a></li><li><a href="Template.html">Template</a></li><li><a href="TemplateEditor.html">TemplateEditor</a></li><li><a href="TemplateReferenceEditor.html">TemplateReferenceEditor</a></li><li><a href="UpdateHelper.html">UpdateHelper</a></li><li><a href="UrlEditor.html">UrlEditor</a></li><li><a href="UserHelper.html">UserHelper</a></li></ul>
 </nav>
 
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.0</a> on Mon Sep 05 2016 13:07:42 GMT+0200 (CEST)
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.3</a> on Mon May 29 2017 21:20:48 GMT+0200 (CEST)
 </footer>
 
 <script> prettyPrint(); </script>

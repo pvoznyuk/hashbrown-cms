@@ -28,6 +28,10 @@
         <article>
             <pre class="prettyprint source linenums"><code>'use strict';
 
+// Libs
+let fs = require('fs');
+let spawn = require('child_process').spawn;
+
 // MongoHelper client
 let mongodb = require('mongodb');
 let mongoClient = mongodb.MongoClient;
@@ -37,6 +41,9 @@ let Content = require('../models/Content');
 let Connection = require('../../common/models/Connection');
 let User = require('../models/User');
 
+/**
+ * The helper class for MongoDB operations
+ */
 class MongoHelper {
     /**
      * Inits the MongoHelper database
@@ -67,6 +74,111 @@ class MongoHelper {
     }
     
     /**
+     * Restores a database
+     *
+     * @param {String} databaseName
+     * @param {String} timestamp
+     *
+     * @returns {Promise} Data string
+     */
+    static restore(databaseName, timestamp) {
+        return new Promise((resolve, reject) => {
+            let args = [];
+            let basePath = appRoot + '/storage';
+            let projectPath = basePath + '/' + databaseName + '/dump';
+            let archivePath = projectPath + '/' + timestamp + '.hba';
+
+            // Drop existing
+            args.push('--drop');
+
+            // Archive
+            if(!fs.existsSync(archivePath)) {
+                reject(new Error('Archive at "' + archivePath + '" could not be found'));
+            
+            } else {
+                args.push('--archive=' + archivePath);
+                args.push('--db=' + databaseName);
+
+                let mongorestore = spawn('mongorestore', args);
+
+                mongorestore.stdout.on('data', (data) => {
+                    debug.log(data.toString(), this);
+                });
+
+                mongorestore.stderr.on('data', (data) => {
+                    debug.log(data.toString(), this);
+                });
+                
+                mongorestore.on('exit', (code) => {
+                    if(code != 0) {
+                        reject(new Error('mongorestore exited with status code ' + code));
+                    
+                    } else {
+                        resolve();
+
+                    }
+                });
+            }
+        });
+    }
+   
+    /**
+     * Dumps a database
+     *
+     * @param {String} databaseName
+     *
+     * @returns {Promise} Data string
+     */
+    static dump(databaseName) {
+        return new Promise((resolve, reject) => {
+            let args = [];
+            let basePath = appRoot + '/storage';
+            let projectPath = basePath + '/' + databaseName + '/';
+            let dumpPath = projectPath + 'dump/';
+
+            if(databaseName) {
+                args.push('--db');
+                args.push(databaseName);
+            }
+
+            // Archive
+            if(!fs.existsSync(basePath)) {
+                fs.mkdirSync(basePath);
+            }
+            
+            if(!fs.existsSync(projectPath)) {
+                fs.mkdirSync(projectPath);
+            }
+            
+            if(!fs.existsSync(dumpPath)) {
+                fs.mkdirSync(dumpPath);
+            }
+
+            args.push('--archive=' + dumpPath + '/' + Date.now() + '.hba');
+
+            let mongodump = spawn('mongodump', args);
+
+            mongodump.stdout.on('data', (data) => {
+                debug.log(data.toString(), this);
+            });
+
+            mongodump.stderr.on('data', (data) => {
+                debug.log(data.toString(), this);
+            });
+            
+            mongodump.on('exit', (code) => {
+                if(code != 0) {
+                    reject(new Error('mongodump exited with status code ' + code));
+                
+                } else {
+                    resolve();
+
+                }
+            });
+        });
+    }
+
+    /**
      * Lists all collections in a database
      *
      * @param {String} databaseName
@@ -75,7 +187,7 @@ class MongoHelper {
      */
     static listCollections(databaseName) {
         return new Promise((resolve, reject) => {
-            debug.log(databaseName + '::listCollections...', this, 3);
+            debug.log(databaseName + '::listCollections...', this, 4);
 
             MongoHelper.getDatabase(databaseName)
             .then(function(db) {
@@ -100,7 +212,7 @@ class MongoHelper {
      */
     static listDatabases() {
         return new Promise((resolve, reject) => {
-            debug.log('Listing all databases...', this, 3);
+            debug.log('Listing all databases...', this, 4);
 
             let connectionString = 'mongodb://localhost/';
             
@@ -121,6 +233,7 @@ class MongoHelper {
                                     !database.empty &amp;&amp;
                                     database.name != 'local' &amp;&amp;
                                     database.name != 'users' &amp;&amp;
+                                    database.name != 'schedule' &amp;&amp;
                                     database.name != 'admin' &amp;&amp;
                                     database.name != 'undefined' &amp;&amp; 
                                     database.name != 'false'
@@ -142,6 +255,35 @@ class MongoHelper {
     }
 
     /**
+     * Check if a database exists
+     *
+     * @param {String} databaseName
+     *
+     * returns {Promise} Promise
+     */
+    static databaseExists(databaseName) {
+        return MongoHelper.listDatabases()
+        .then((databases) => {
+            return Promise.resolve(databases.indexOf(databaseName) > -1);
+        });
+    }
+    
+    /**
+     * Check if a collection exists
+     *
+     * @param {String} databaseName
+     * @param {String} collectionName
+     *
+     * returns {Promise} Promise
+     */
+    static collectionExists(databaseName, collectionName) {
+        return MongoHelper.listCollections(databaseName)
+        .then((collections) => {
+            return Promise.resolve(collections.indexOf(collectionName) > -1);
+        });
+    }
+
+    /**
      * Finds a single Mongo document
      *
      * @param {String} databaseName
@@ -153,7 +295,7 @@ class MongoHelper {
      */
     static findOne(databaseName, collectionName, query, pattern) {
         return new Promise((resolve, reject) => {
-            debug.log(databaseName + '/' + collectionName + '::findOne ' + JSON.stringify(query) + '...', this, 3);
+            debug.log(databaseName + '/' + collectionName + '::findOne ' + JSON.stringify(query) + '...', this, 4);
 
             pattern = pattern || {};
             pattern._id = 0;
@@ -187,7 +329,7 @@ class MongoHelper {
      */
     static find(databaseName, collectionName, query, pattern, sort) {
         return new Promise((resolve, reject) => {
-            debug.log(databaseName + '/' + collectionName + '::find ' + JSON.stringify(query) + '...', this, 3);
+            debug.log(databaseName + '/' + collectionName + '::find ' + JSON.stringify(query) + '...', this, 4);
 
             pattern = pattern || {};
             pattern._id = 0;
@@ -200,6 +342,37 @@ class MongoHelper {
 
                     } else {
                         resolve(docs);
+                    
+                    }
+
+                    db.close();
+                });
+            })
+            .catch(reject);
+        });
+    }
+    
+    /**
+     * Counts Mongo documents
+     *
+     * @param {String} databaseName
+     * @param {String} collectionName
+     * @param {Object} query
+     *
+     * @return {Promise} Number of matching documents
+     */
+    static count(databaseName, collectionName, query) {
+        return new Promise((resolve, reject) => {
+            debug.log(databaseName + '/' + collectionName + '::count ' + JSON.stringify(query) + '...', this, 4);
+
+            MongoHelper.getDatabase(databaseName)
+            .then((db) => {
+                db.collection(collectionName).count(query, (findErr, result) => {
+                    if(findErr) {
+                        reject(new Error(findErr));
+
+                    } else {
+                        resolve(result);
                     
                     }
 
@@ -225,6 +398,8 @@ class MongoHelper {
         return new Promise((resolve, reject) => {
             this.findOne(databaseName, collectionName, query)
             .then((foundDoc) => {
+                foundDoc = foundDoc || {};
+
                 for(let k in doc) {
                     foundDoc[k] = doc[k];
                 }
@@ -249,27 +424,24 @@ class MongoHelper {
      * @return {Promise} promise
      */
     static updateOne(databaseName, collectionName, query, doc, options) {
-        return new Promise((resolve, reject) => {
-            // Make sure the MongoId isn't included
-            delete doc['_id'];
+        // Make sure the MongoId isn't included
+        delete doc['_id'];
 
-            debug.log(databaseName + '/' + collectionName + '::updateOne ' + JSON.stringify(query) + ' with options ' + JSON.stringify(options || {}) + '...', this, 3);
-        
-            MongoHelper.getDatabase(databaseName)
-            .then(function(db) {
-                db.collection(collectionName).updateOne(query, doc, options || {}, function(findErr) {
-                    if(findErr) {
-                        reject(new Error(findErr));
-                    
-                    } else {
-                        resolve();
+        debug.log(databaseName + '/' + collectionName + '::updateOne ' + JSON.stringify(query) + ' with options ' + JSON.stringify(options || {}) + '...', this, 4);
+    
+        return MongoHelper.getDatabase(databaseName)
+        .then(function(db) {
+            db.collection(collectionName).updateOne(query, doc, options || {}, function(findErr) {
+                db.close();
+                
+                if(findErr) {
+                    return Promise.reject(new Error(findErr));
+                
+                } else {
+                    return Promise.resolve();
 
-                    }
-
-                    db.close();
-                });
-            })
-            .catch(reject);
+                }
+            });
         });
     }
     
@@ -289,7 +461,7 @@ class MongoHelper {
         delete doc['_id'];
 
         return new Promise((resolve, reject) => {
-            debug.log(databaseName + '/' + collectionName + '::updateOne ' + JSON.stringify(query) + ' with options ' + JSON.stringify(options || {}) + '...', this, 3);
+            debug.log(databaseName + '/' + collectionName + '::updateOne ' + JSON.stringify(query) + ' with options ' + JSON.stringify(options || {}) + '...', this, 4);
         
             MongoHelper.getDatabase(databaseName)
             .then(function(db) {
@@ -323,7 +495,7 @@ class MongoHelper {
         delete doc['_id'];
 
         return new Promise((resolve, reject) => {
-            debug.log(databaseName + '/' + collectionName + '::insertOne ' + JSON.stringify(doc) + '...', this, 3);
+            debug.log(databaseName + '/' + collectionName + '::insertOne ' + JSON.stringify(doc) + '...', this, 4);
         
             MongoHelper.getDatabase(databaseName)
             .then(function(db) {
@@ -352,7 +524,7 @@ class MongoHelper {
      */
     static remove(databaseName, collectionName, query) {
         return new Promise((resolve, reject) => {
-            debug.log(databaseName + '/' + collectionName + '::remove ' + JSON.stringify(query) + '...', this, 3);
+            debug.log(databaseName + '/' + collectionName + '::remove ' + JSON.stringify(query) + '...', this, 4);
         
             MongoHelper.getDatabase(databaseName)
             .then(function(db) {
@@ -381,7 +553,7 @@ class MongoHelper {
      */
     static removeOne(databaseName, collectionName, query) {
         return new Promise((resolve, reject) => {
-            debug.log(databaseName + '/' + collectionName + '::removeOne ' + JSON.stringify(query) + '...', this, 3);
+            debug.log(databaseName + '/' + collectionName + '::removeOne ' + JSON.stringify(query) + '...', this, 4);
         
             MongoHelper.getDatabase(databaseName)
             .then(function(db) {
@@ -398,21 +570,22 @@ class MongoHelper {
             .catch(reject);
         });
     }    
-
+    
     /**
-     * Drops an entire database
+     * Drops an entire collection
      *
      * @param {String} databaseName
+     * @param {String} collectionName
      *
      * @return {Promise} promise
      */
-    static dropDatabase(databaseName) {
-        return new Promise((resolve, reject) => {
-            debug.log(databaseName + '::dropDatabase...', this, 3);
+    static dropCollection(databaseName, collectionName) {
+        debug.log(databaseName + '::dropCollection...', this, 4);
 
-            MongoHelper.getDatabase(databaseName)
-            .then(function(db) {
-                db.dropDatabase(function(err) {
+        return MongoHelper.getDatabase(databaseName)
+        .then((db) => {
+            return new Promise((resolve, reject) => {
+                db.dropCollection(collectionName, (err) => {
                     if(err) {
                         reject(new Error(err));
                     
@@ -422,8 +595,34 @@ class MongoHelper {
 
                     db.close();
                 });
-            })
-            .catch(reject);
+            });
+        });
+    }
+
+    /**
+     * Drops an entire database
+     *
+     * @param {String} databaseName
+     *
+     * @return {Promise} promise
+     */
+    static dropDatabase(databaseName) {
+        debug.log(databaseName + '::dropDatabase...', this, 4);
+
+        return MongoHelper.getDatabase(databaseName)
+        .then((db) => {
+            return new Promise((resolve, reject) => {
+                db.dropDatabase((err) => {
+                    if(err) {
+                        reject(new Error(err));
+                    
+                    } else {
+                        resolve();
+                    }
+
+                    db.close();
+                });
+            });
         });
     }
 }
@@ -439,13 +638,13 @@ module.exports = MongoHelper
 </div>
 
 <nav>
-    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="ApiController.html">ApiController</a></li><li><a href="ArrayEditor.html">ArrayEditor</a></li><li><a href="BooleanEditor.html">BooleanEditor</a></li><li><a href="Connection.html">Connection</a></li><li><a href="ConnectionController.html">ConnectionController</a></li><li><a href="Content.html">Content</a></li><li><a href="ContentController.html">ContentController</a></li><li><a href="ContentReferenceEditor.html">ContentReferenceEditor</a></li><li><a href="ContentSchema.html">ContentSchema</a></li><li><a href="ContentSchemaReferenceEditor.html">ContentSchemaReferenceEditor</a></li><li><a href="Controller.html">Controller</a></li><li><a href="DateEditor.html">DateEditor</a></li><li><a href="DropdownEditor.html">DropdownEditor</a></li><li><a href="Entity.html">Entity</a></li><li><a href="FieldSchema.html">FieldSchema</a></li><li><a href="Form.html">Form</a></li><li><a href="FormEditor.html">FormEditor</a></li><li><a href="JSONEditor.html">JSONEditor</a></li><li><a href="LanguageEditor.html">LanguageEditor</a></li><li><a href="LanguageSettings.html">LanguageSettings</a></li><li><a href="Media.html">Media</a></li><li><a href="MediaReferenceEditor.html">MediaReferenceEditor</a></li><li><a href="MessageModal.html">MessageModal</a></li><li><a href="NavbarMain.html">NavbarMain</a></li><li><a href="PeriodEditor.html">PeriodEditor</a></li><li><a href="ProjectHelper.html">ProjectHelper</a></li><li><a href="RichTextEditor.html">RichTextEditor</a></li><li><a href="Schema.html">Schema</a></li><li><a href="SchemaController.html">SchemaController</a></li><li><a href="SchemaEditor.html">SchemaEditor</a></li><li><a href="SchemaHelper.html">SchemaHelper</a></li><li><a href="StringEditor.html">StringEditor</a></li><li><a href="StructEditor.html">StructEditor</a></li><li><a href="TemplateReferenceEditor.html">TemplateReferenceEditor</a></li><li><a href="UrlEditor.html">UrlEditor</a></li><li><a href="UserHelper.html">UserHelper</a></li></ul>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="ApiController.html">ApiController</a></li><li><a href="AppHelper.html">AppHelper</a></li><li><a href="BackupHelper.html">BackupHelper</a></li><li><a href="BooleanEditor.html">BooleanEditor</a></li><li><a href="Connection.html">Connection</a></li><li><a href="ConnectionController.html">ConnectionController</a></li><li><a href="Content.html">Content</a></li><li><a href="ContentController.html">ContentController</a></li><li><a href="ContentReferenceEditor.html">ContentReferenceEditor</a></li><li><a href="ContentSchema.html">ContentSchema</a></li><li><a href="ContentSchemaReferenceEditor.html">ContentSchemaReferenceEditor</a></li><li><a href="Controller.html">Controller</a></li><li><a href="DateEditor.html">DateEditor</a></li><li><a href="DropdownEditor.html">DropdownEditor</a></li><li><a href="Entity.html">Entity</a></li><li><a href="FieldSchema.html">FieldSchema</a></li><li><a href="Form.html">Form</a></li><li><a href="FormEditor.html">FormEditor</a></li><li><a href="FormHelper.html">FormHelper</a></li><li><a href="InfoEditor.html">InfoEditor</a></li><li><a href="JSONEditor.html">JSONEditor</a></li><li><a href="LanguageEditor.html">LanguageEditor</a></li><li><a href="Media.html">Media</a></li><li><a href="MediaReferenceEditor.html">MediaReferenceEditor</a></li><li><a href="MessageModal.html">MessageModal</a></li><li><a href="MongoHelper.html">MongoHelper</a></li><li><a href="NavbarMain.html">NavbarMain</a></li><li><a href="NumberEditor.html">NumberEditor</a></li><li><a href="ProjectEditor.html">ProjectEditor</a></li><li><a href="ProjectHelper.html">ProjectHelper</a></li><li><a href="ProvidersSettings.html">ProvidersSettings</a></li><li><a href="RequestHelper.html">RequestHelper</a></li><li><a href="ResourceReferenceEditor.html">ResourceReferenceEditor</a></li><li><a href="RichTextEditor.html">RichTextEditor</a></li><li><a href="ScheduleController.html">ScheduleController</a></li><li><a href="ScheduleHelper.html">ScheduleHelper</a></li><li><a href="Schema.html">Schema</a></li><li><a href="SchemaController.html">SchemaController</a></li><li><a href="SchemaEditor.html">SchemaEditor</a></li><li><a href="SchemaHelper.html">SchemaHelper</a></li><li><a href="StringEditor.html">StringEditor</a></li><li><a href="StructEditor.html">StructEditor</a></li><li><a href="SyncEditor.html">SyncEditor</a></li><li><a href="SyncHelper.html">SyncHelper</a></li><li><a href="TagsEditor.html">TagsEditor</a></li><li><a href="Task.html">Task</a></li><li><a href="Template.html">Template</a></li><li><a href="TemplateEditor.html">TemplateEditor</a></li><li><a href="TemplateReferenceEditor.html">TemplateReferenceEditor</a></li><li><a href="UpdateHelper.html">UpdateHelper</a></li><li><a href="UrlEditor.html">UrlEditor</a></li><li><a href="UserHelper.html">UserHelper</a></li></ul>
 </nav>
 
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.0</a> on Mon Sep 05 2016 13:07:42 GMT+0200 (CEST)
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.3</a> on Mon May 29 2017 21:20:48 GMT+0200 (CEST)
 </footer>
 
 <script> prettyPrint(); </script>

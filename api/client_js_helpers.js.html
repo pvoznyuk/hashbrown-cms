@@ -29,42 +29,74 @@
             <pre class="prettyprint source linenums"><code>// Libraries
 require('exomon');
 window.Promise = require('bluebird');
+window.marked = require('marked');
+window.toMarkdown = require('to-markdown');
 
 // Common views
 window.MessageModal = require('./views/MessageModal');
 
 // Common helpers
+window.UI = require('./helpers/UIHelper');
 window.ProjectHelper = require('./helpers/ProjectHelper');
+window.LanguageHelper = require('./helpers/LanguageHelper');
+window.SettingsHelper = require('./helpers/SettingsHelper');
+
+window.debug = require('../../common/helpers/DebugHelper');
+window.debug.verbosity = 3;
 
 /**
- * Brings up a message modal
+ * Checks if the currently logged in user is admin
  *
- * @param {String} title
- * @param {String} body
+ * @resurns {Boolean} Is admin
  */
-window.messageModal = function messageModal(title, body, onSubmit) {
-    return new MessageModal({
-        model: {
-            title: title,
-            body: body,
-            onSubmit: onSubmit
+window.isCurrentUserAdmin = function isCurrentUserAdmin() {
+    for(let user of resources.users) {
+        if(user.isCurrent) {
+            return user.isAdmin;
         }
-    });
+    }
+
+    return false;
 }
 
 /**
- * Brings up an error modal
+ * Checks if the currently logged in user has a particular scope
  *
- * @param {String|Error} error
+ * @param {String} scope
+ *
+ * @resurns {Boolean} Has scope
  */
-window.errorModal = function errorModal(error) {
-    if(error instanceof String) {
-        error = new Error(error);
+window.currentUserHasScope = function currentUserHasScope(scope) {
+    for(let user of resources.users) {
+        if(user.isCurrent) {
+            return user.hasScope(scope);
+        }
     }
 
-    messageModal('Error', error.message);
+    return false;
+}
 
-    throw error;
+/**
+ * Handles a required parameter
+ */
+window.requiredParam = function requiredParam(name) {
+    throw new Error('Parameter "' + name + '" is required');
+}
+
+/**
+ * Gets a cookie by name
+ *
+ * @param {String} name
+ *
+ * @returns {String} value
+ */
+window.getCookie = function getCookie(name) {
+    let value = "; " + document.cookie;
+    let parts = value.split("; " + name + "=");
+
+    if(parts.length == 2) {
+        return parts.pop().split(";").shift();
+    }
 }
 
 /**
@@ -85,10 +117,10 @@ window.copyToClipboard = function copyToClipboard(string) {
         let success = document.execCommand('copy');
 
         if(!success) {
-            errorModal('Your browser does not yet support copying to clipboard');
+            UI.errorModal('Your browser does not yet support copying to clipboard');
         }
     } catch(e) {
-            errorModal(e.toString());
+            UI.errorModal(e.toString());
     }
 
     document.body.removeChild(text);
@@ -98,6 +130,8 @@ window.copyToClipboard = function copyToClipboard(string) {
  * Wraps an API URL
  *
  * @param {String} url
+ *
+ * @returns {String} API URL
  */
 window.apiUrl = function apiUrl(url) {
     let newUrl = '/api/';
@@ -112,13 +146,6 @@ window.apiUrl = function apiUrl(url) {
 
     newUrl += url;
   
-    /*
-    if(url.indexOf('?') > -1) {
-        newUrl += '&amp;token=' + localStorage.getItem('token');
-    } else {
-        newUrl += '?token=' + localStorage.getItem('token');
-    }*/
-
     return newUrl;
 };
 
@@ -126,13 +153,28 @@ window.apiUrl = function apiUrl(url) {
  * Wraps an API call
  *
  * @param {String} method
+ * @param {String} url
+ * @param {Object} data
  *
- * @returns {Promise(Object)} response
+ * @returns {Promise} Response
  */
 window.apiCall = function apiCall(method, url, data) {
+    return customApiCall(method, apiUrl(url), data);
+}
+    
+/**
+ * Wraps an API call with a custom path
+ *
+ * @param {String} method
+ * @param {String} url
+ * @param {Object} data
+ *
+ * @returns {Promise} Response
+ */
+window.customApiCall = function customApiCall(method, url, data) {
     return new Promise((resolve, reject) => {
         var xhr = new XMLHttpRequest();
-        xhr.open(method.toUpperCase(), apiUrl(url));
+        xhr.open(method.toUpperCase(), url);
         xhr.setRequestHeader('Content-Type', 'application/json; charset=utf-8');
 
         if(data) {
@@ -182,6 +224,28 @@ window.apiCall = function apiCall(method, url, data) {
         }
     });
 };
+
+/**
+ * Listens for server restart
+ */
+window.listenForRestart = function listenForRestart() {
+    UI.messageModal('Restart', 'HashBrown is restarting...', false);
+
+    function poke() {
+        $.ajax({
+            type: 'get',
+            url: '/',
+            success: () => {
+                location.reload();
+            },
+            error: () => {
+                poke();
+            }
+        });
+    }
+
+    poke();
+};
 </code></pre>
         </article>
     </section>
@@ -192,13 +256,13 @@ window.apiCall = function apiCall(method, url, data) {
 </div>
 
 <nav>
-    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="ApiController.html">ApiController</a></li><li><a href="ArrayEditor.html">ArrayEditor</a></li><li><a href="BooleanEditor.html">BooleanEditor</a></li><li><a href="Connection.html">Connection</a></li><li><a href="ConnectionController.html">ConnectionController</a></li><li><a href="Content.html">Content</a></li><li><a href="ContentController.html">ContentController</a></li><li><a href="ContentReferenceEditor.html">ContentReferenceEditor</a></li><li><a href="ContentSchema.html">ContentSchema</a></li><li><a href="ContentSchemaReferenceEditor.html">ContentSchemaReferenceEditor</a></li><li><a href="Controller.html">Controller</a></li><li><a href="DateEditor.html">DateEditor</a></li><li><a href="DropdownEditor.html">DropdownEditor</a></li><li><a href="Entity.html">Entity</a></li><li><a href="FieldSchema.html">FieldSchema</a></li><li><a href="Form.html">Form</a></li><li><a href="FormEditor.html">FormEditor</a></li><li><a href="JSONEditor.html">JSONEditor</a></li><li><a href="LanguageEditor.html">LanguageEditor</a></li><li><a href="LanguageSettings.html">LanguageSettings</a></li><li><a href="Media.html">Media</a></li><li><a href="MediaReferenceEditor.html">MediaReferenceEditor</a></li><li><a href="MessageModal.html">MessageModal</a></li><li><a href="NavbarMain.html">NavbarMain</a></li><li><a href="PeriodEditor.html">PeriodEditor</a></li><li><a href="ProjectHelper.html">ProjectHelper</a></li><li><a href="RichTextEditor.html">RichTextEditor</a></li><li><a href="Schema.html">Schema</a></li><li><a href="SchemaController.html">SchemaController</a></li><li><a href="SchemaEditor.html">SchemaEditor</a></li><li><a href="SchemaHelper.html">SchemaHelper</a></li><li><a href="StringEditor.html">StringEditor</a></li><li><a href="StructEditor.html">StructEditor</a></li><li><a href="TemplateReferenceEditor.html">TemplateReferenceEditor</a></li><li><a href="UrlEditor.html">UrlEditor</a></li><li><a href="UserHelper.html">UserHelper</a></li></ul>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="ApiController.html">ApiController</a></li><li><a href="AppHelper.html">AppHelper</a></li><li><a href="BackupHelper.html">BackupHelper</a></li><li><a href="BooleanEditor.html">BooleanEditor</a></li><li><a href="Connection.html">Connection</a></li><li><a href="ConnectionController.html">ConnectionController</a></li><li><a href="Content.html">Content</a></li><li><a href="ContentController.html">ContentController</a></li><li><a href="ContentReferenceEditor.html">ContentReferenceEditor</a></li><li><a href="ContentSchema.html">ContentSchema</a></li><li><a href="ContentSchemaReferenceEditor.html">ContentSchemaReferenceEditor</a></li><li><a href="Controller.html">Controller</a></li><li><a href="DateEditor.html">DateEditor</a></li><li><a href="DropdownEditor.html">DropdownEditor</a></li><li><a href="Entity.html">Entity</a></li><li><a href="FieldSchema.html">FieldSchema</a></li><li><a href="Form.html">Form</a></li><li><a href="FormEditor.html">FormEditor</a></li><li><a href="FormHelper.html">FormHelper</a></li><li><a href="InfoEditor.html">InfoEditor</a></li><li><a href="JSONEditor.html">JSONEditor</a></li><li><a href="LanguageEditor.html">LanguageEditor</a></li><li><a href="Media.html">Media</a></li><li><a href="MediaReferenceEditor.html">MediaReferenceEditor</a></li><li><a href="MessageModal.html">MessageModal</a></li><li><a href="MongoHelper.html">MongoHelper</a></li><li><a href="NavbarMain.html">NavbarMain</a></li><li><a href="NumberEditor.html">NumberEditor</a></li><li><a href="ProjectEditor.html">ProjectEditor</a></li><li><a href="ProjectHelper.html">ProjectHelper</a></li><li><a href="ProvidersSettings.html">ProvidersSettings</a></li><li><a href="RequestHelper.html">RequestHelper</a></li><li><a href="ResourceReferenceEditor.html">ResourceReferenceEditor</a></li><li><a href="RichTextEditor.html">RichTextEditor</a></li><li><a href="ScheduleController.html">ScheduleController</a></li><li><a href="ScheduleHelper.html">ScheduleHelper</a></li><li><a href="Schema.html">Schema</a></li><li><a href="SchemaController.html">SchemaController</a></li><li><a href="SchemaEditor.html">SchemaEditor</a></li><li><a href="SchemaHelper.html">SchemaHelper</a></li><li><a href="StringEditor.html">StringEditor</a></li><li><a href="StructEditor.html">StructEditor</a></li><li><a href="SyncEditor.html">SyncEditor</a></li><li><a href="SyncHelper.html">SyncHelper</a></li><li><a href="TagsEditor.html">TagsEditor</a></li><li><a href="Task.html">Task</a></li><li><a href="Template.html">Template</a></li><li><a href="TemplateEditor.html">TemplateEditor</a></li><li><a href="TemplateReferenceEditor.html">TemplateReferenceEditor</a></li><li><a href="UpdateHelper.html">UpdateHelper</a></li><li><a href="UrlEditor.html">UrlEditor</a></li><li><a href="UserHelper.html">UserHelper</a></li></ul>
 </nav>
 
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.0</a> on Mon Sep 05 2016 13:07:42 GMT+0200 (CEST)
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.3</a> on Mon May 29 2017 21:20:48 GMT+0200 (CEST)
 </footer>
 
 <script> prettyPrint(); </script>

@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: client/js/views/MainMenu.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: client/js/views/MainMenu.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>'use strict';
+
+class MainMenu extends View {
+    constructor(params) {
+        super(params);
+        
+        this.$element = _.div({class: 'main-menu'})
+
+        $('.menuspace').html(this.$element);
+
+        this.fetch();
+    }
+    
+    /**
+     * Event: On change language
+     *
+     * @param {String} newLanguage
+     */
+    onChangeLanguage(newLanguage) {
+        localStorage.setItem('language', newLanguage);
+
+        window.language = newLanguage;
+
+        reloadResource('content')
+        .then(() => {
+            NavbarMain.reload();
+
+            let contentEditor = ViewHelper.get('ContentEditor');
+
+            if(contentEditor) {
+                contentEditor.model = null;
+                contentEditor.fetch();
+            }
+
+            this.fetch();
+        });
+    }
+    
+    /**
+     * Event: Click question
+     */
+    onClickQuestion() {
+        let path = location.hash.replace('#', '').split('/') ;
+
+        if(!path || path.length &lt; 1) { return; }
+
+        let level1 = path[1];
+        let level2 = path[2];
+
+        switch(level1) {
+            default:
+                UI.messageModal('The help modal', [
+                    _.p('To get help for any particular screen, click the &lt;span class="fa fa-question-circle">&lt;/span> button to bring up this modal.'),
+                    _.p('There\'s nothing worth explaining on this screen, though.')
+                ]);
+                break;
+
+            case 'content':
+                UI.messageModal('Content', [ 
+                    _.p('This section contains all of your authored work. The content is a hierarchical tree of nodes that can contain text and media, in simple or complex structures.')
+                ]);
+                break;
+
+            case 'media':
+                UI.messageModal('Media', [
+                    _.p('This is a gallery of your statically hosted files, such as images, videos and PDFs.'),
+                    _.if(User.current.hasScope('settings'),
+                        _.p('The contents of this gallery depends on which Connection has been set up as the Media provider in the &lt;a href="#/settings/providers/">providers settings&lt;/a>')
+                    )
+                ]);
+                break;
+
+            case 'forms':
+                UI.messageModal('Forms', 'If you need an input form on your website, you can create the model for it here and see a list of the user submitted input.');
+                break;
+
+            case 'templates':
+                UI.messageModal('Templates', [
+                    _.p('This section contains rendering Templates for your authored Content.'),
+                    _.if(User.current.hasScope('settings'),
+                        _.p('Templates are served through the Connection assigned as the Template provider in the &lt;a href="#/settings/providers/">providers settings&lt;/a>.')
+                    )
+                ]);
+                break;
+
+            case 'connections':
+                UI.messageModal('Connections', [
+                    _.p('Connections are endpoints and resources for your content. Connections can be set up to publish your Content and Media to remote servers.'),
+                    _.p('Through the &lt;a href="#/settings/providers/">providers settings&lt;/a>, they can also be set up to provide statically hosted media and serve rendering templates.')
+                ]);
+                break;
+
+            case 'schemas':
+                UI.messageModal('Schemas', 'This is a library of content structures. Here you define how your editable content looks and behaves. You can define schemas for both content nodes and property fields.');
+                break;
+
+            case 'users':
+                UI.messageModal('Users', 'Here you can add and remove users, edit personal information and scopes and change passwords');
+                break;
+
+            case 'settings':
+                switch(level2) {
+                    case 'sync':
+                        UI.messageModal('Sync settings', 'Syncing lets you connect this HashBrown instance to another. When syncing is active, you can pull or push Content, Schemas, Forms and Connections between the local and the remote instance.');
+                        break;
+                    case 'providers':
+                        UI.messageModal('Providers settings', [
+                            _.p('Providers are &lt;a href="#/connections/">Connections&lt;/a> set up to serve static &lt;a href="#/media/">Media&lt;/a> and &lt;a href="#/template/">Templates&lt;/a>.'),
+                            _.p('For example, when a &lt;a href="#/connections/">Connection&lt;/a> is assigned as the &lt;a href="#/media/">Media&lt;/a> provider, the images and other content in the &lt;a href="#/media/">Media gallery&lt;/a> are pulled from that connection.'),
+                            _.p('Similarly, if a &lt;a href="#/connections/">Connection&lt;/a> is assigned as the &lt;a href="#/templates/">Template&lt;/a> provider, the available &lt;a href="#/templates/">Templates&lt;/a> will be pulled from that &lt;a href="#/connections/">Connection&lt;/a>.')
+                        ]);
+                        break;
+                    default:
+                        UI.messageModal('Settings', 'Here you can edit environment-specific settings');
+                        break;
+                }
+
+                break;
+        }
+    }
+
+    render() {
+        // Find current user
+        for(let user of resources.users) {
+            if(user.isCurrent) {
+                this.user = user;
+            }
+        }
+
+        // Render menu
+        this.languages = LanguageHelper.selectedLanguages || [];
+
+        _.append(this.$element.empty(),
+            // Language picker
+            _.if(Array.isArray(this.languages) &amp;&amp; this.languages.length > 1,
+                _.div({class: 'main-menu-item dropdown main-menu-language'},
+                    _.button({title: 'Language', class: 'dropdown-toggle', 'data-toggle': 'dropdown'},
+                        _.span({class: 'fa fa-flag'})    
+                    ),
+                    _.ul({class: 'dropdown-menu'},
+                        _.each(this.languages, (i, language) => {
+                            return _.li({value: language, class: language == window.language ? 'active': ''},
+                                _.button(
+                                    language
+                                ).click(() => { this.onChangeLanguage(language); })
+                            );
+                        })
+                    )
+                )
+            ),
+
+            // Dashboard link
+            _.div({class: 'main-menu-item'},
+                _.a({title: 'Dashboard', href: '/', class: 'main-menu-dashboard'},
+                    _.span({class: 'fa fa-home'})
+                )
+            ),
+
+            // User dropdown
+            _.div({class: 'main-menu-item main-menu-user dropdown'},
+                _.button({title: 'User', class: 'dropdown-toggle', 'data-toggle': 'dropdown'},
+                    _.span({class: 'fa fa-user'})
+                ),
+                _.ul({class: 'dropdown-menu'},
+                    _.li(
+                        _.a({class: 'dropdown-item', href: '#/users/' + this.user.id}, 'User settings')
+                            .click((e) => { e.preventDefault(); new UserEditor({ hidePermissions: true, model: User.current }); })
+                    ),
+                    _.li(
+                        _.form({class: 'dropdown-item', action: '/api/user/logout', method: 'POST'},
+                            _.input({type: 'submit', value: 'Log out'})
+                        )
+                    )
+                )
+            ),
+
+            // Help
+            _.div({class: 'main-menu-item'},
+                _.button({title: 'Help', class: 'main-menu-help'},
+                    _.span({class: 'fa fa-question-circle'})
+                ).click(() => { this.onClickQuestion(); })
+            )
+        );
+    }
+}
+
+module.exports = MainMenu;
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="ApiController.html">ApiController</a></li><li><a href="AppHelper.html">AppHelper</a></li><li><a href="BackupHelper.html">BackupHelper</a></li><li><a href="BooleanEditor.html">BooleanEditor</a></li><li><a href="Connection.html">Connection</a></li><li><a href="ConnectionController.html">ConnectionController</a></li><li><a href="Content.html">Content</a></li><li><a href="ContentController.html">ContentController</a></li><li><a href="ContentReferenceEditor.html">ContentReferenceEditor</a></li><li><a href="ContentSchema.html">ContentSchema</a></li><li><a href="ContentSchemaReferenceEditor.html">ContentSchemaReferenceEditor</a></li><li><a href="Controller.html">Controller</a></li><li><a href="DateEditor.html">DateEditor</a></li><li><a href="DropdownEditor.html">DropdownEditor</a></li><li><a href="Entity.html">Entity</a></li><li><a href="FieldSchema.html">FieldSchema</a></li><li><a href="Form.html">Form</a></li><li><a href="FormEditor.html">FormEditor</a></li><li><a href="FormHelper.html">FormHelper</a></li><li><a href="InfoEditor.html">InfoEditor</a></li><li><a href="JSONEditor.html">JSONEditor</a></li><li><a href="LanguageEditor.html">LanguageEditor</a></li><li><a href="Media.html">Media</a></li><li><a href="MediaReferenceEditor.html">MediaReferenceEditor</a></li><li><a href="MessageModal.html">MessageModal</a></li><li><a href="MongoHelper.html">MongoHelper</a></li><li><a href="NavbarMain.html">NavbarMain</a></li><li><a href="NumberEditor.html">NumberEditor</a></li><li><a href="ProjectEditor.html">ProjectEditor</a></li><li><a href="ProjectHelper.html">ProjectHelper</a></li><li><a href="ProvidersSettings.html">ProvidersSettings</a></li><li><a href="RequestHelper.html">RequestHelper</a></li><li><a href="ResourceReferenceEditor.html">ResourceReferenceEditor</a></li><li><a href="RichTextEditor.html">RichTextEditor</a></li><li><a href="ScheduleController.html">ScheduleController</a></li><li><a href="ScheduleHelper.html">ScheduleHelper</a></li><li><a href="Schema.html">Schema</a></li><li><a href="SchemaController.html">SchemaController</a></li><li><a href="SchemaEditor.html">SchemaEditor</a></li><li><a href="SchemaHelper.html">SchemaHelper</a></li><li><a href="StringEditor.html">StringEditor</a></li><li><a href="StructEditor.html">StructEditor</a></li><li><a href="SyncEditor.html">SyncEditor</a></li><li><a href="SyncHelper.html">SyncHelper</a></li><li><a href="TagsEditor.html">TagsEditor</a></li><li><a href="Task.html">Task</a></li><li><a href="Template.html">Template</a></li><li><a href="TemplateEditor.html">TemplateEditor</a></li><li><a href="TemplateReferenceEditor.html">TemplateReferenceEditor</a></li><li><a href="UpdateHelper.html">UpdateHelper</a></li><li><a href="UrlEditor.html">UrlEditor</a></li><li><a href="UserHelper.html">UserHelper</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.3</a> on Mon May 29 2017 21:20:48 GMT+0200 (CEST)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

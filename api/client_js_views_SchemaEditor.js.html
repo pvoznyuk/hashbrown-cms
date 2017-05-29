@@ -52,61 +52,13 @@ class SchemaEditor extends View {
     }
     
     /**
-     * Event: On click remove
-     */
-    onClickDelete() {
-        let view = this;
-
-        function onSuccess() {
-            debug.log('Removed Schema with id "' + view.model.id + '"', view); 
-        
-            reloadResource('schemas')
-            .then(function() {
-                ViewHelper.get('NavbarMain').reload();
-                
-                // Cancel the SchemaEditor view
-                location.hash = '/schemas/';
-            });
-        }
-
-        function onError(err) {
-            new MessageModal({
-                model: {
-                    title: 'Error',
-                    body: err.message
-                }
-            });
-        }
-
-        new MessageModal({
-            model: {
-                title: 'Delete schema',
-                body: 'Are you sure you want to delete the schema "' + view.model.name + '"?'
-            },
-            buttons: [
-                {
-                    label: 'Cancel',
-                    class: 'btn-default',
-                    callback: () => {
-                    }
-                },
-                {
-                    label: 'OK',
-                    class: 'btn-danger',
-                    callback: () => {
-                        apiCall('delete', 'schemas/' + view.model.id)
-                        .then(onSuccess)
-                        .catch(onError);
-                    }
-                }
-            ]
-        });
-    }
-
-    /**
      * Event: Click save. Posts the model to the modelUrl
      */
     onClickSave() {
+        if(this.jsonEditor &amp;&amp; this.jsonEditor.isValid == false) {
+            return;
+        }
+
         this.$saveBtn.toggleClass('working', true);
 
         apiCall('post', 'schemas/' + this.model.id, this.model)
@@ -120,14 +72,7 @@ class SchemaEditor extends View {
                 navbar.reload();
             });
         })
-        .catch((err) => {
-            new MessageModal({
-                model: {
-                    title: 'Error',
-                    body: err
-                }
-            });
-        });
+        .catch(errorModal);
     }
 
     /**
@@ -136,13 +81,16 @@ class SchemaEditor extends View {
      * @return {Object} element
      */
     renderEditorPicker() {
-        let view = this;
+        if(this.model.isPropertyHidden('editorId')) { return; }  
+        
+        let editorOptions = [];
 
-        function onChange() {
-            view.model.editorId = $(this).val();
+        for(let editorId in resources.editors) {
+            editorOptions[editorOptions.length] = {
+                value: editorId,
+                label: resources.editors[editorId].name
+            };
         }
-
-        let $select;
 
         let editorName = '(none)';
         
@@ -152,11 +100,9 @@ class SchemaEditor extends View {
 
         let $element = _.div({class: 'editor-picker'},
             _.if(!this.model.locked,
-                $select = _.select({class: 'form-control'},
-                    _.each(resources.editors, function(id, view) {
-                        return _.option({value: id}, view.name);
-                    })
-                ).change(onChange)
+                UI.inputDropdownTypeAhead(this.model.editorId, editorOptions, (newValue) => {
+                    this.model.editorId = newValue;
+                })
             ),
             _.if(this.model.locked,
                 _.p({class: 'read-only'},
@@ -164,10 +110,6 @@ class SchemaEditor extends View {
                 )
             )
         );
-
-        if(!this.model.locked &amp;&amp; this.model.editorId) {
-            $select.val(view.model.editorId);
-        }
 
         return $element;
     }
@@ -178,6 +120,8 @@ class SchemaEditor extends View {
      * @return {Object} element
      */
     renderNameEditor() {
+        if(this.model.isPropertyHidden('name')) { return; }  
+        
         let view = this;
 
         function onInputChange() {
@@ -205,6 +149,8 @@ class SchemaEditor extends View {
      * @return {Object} element
      */
     renderTabsEditor() {
+        if(this.model.isPropertyHidden('tabs')) { return; }  
+        
         let view = this;
         
         function onInputChange($input) {
@@ -287,26 +233,29 @@ class SchemaEditor extends View {
         }
 
         function render() {
-            let parentTabs = {};
-            
-            if(view.parentSchema) {
-                parentTabs = view.parentSchema.tabs;
+            // Prepend parent tabs if applicable
+            if(view.model.parentSchemaId) {
+                SchemaHelper.getSchemaWithParentFields(view.model.parentSchemaId)
+                .then((parentSchema) => {
+                    let parentTabs = parentSchema.tabs;
+                    
+                    $tabs.prepend(
+                        _.each(parentTabs, function(id, label) {
+                            return _.div({class: 'tab chip'},
+                                _.p({class: 'chip-label'},
+                                    label + ' (inherited)'
+                                )
+                            );
+                        })
+                    );
+                })
+                .catch(errorModal);
             }
 
             let $tabs = _.div({class: 'chip-group'});
 
             $element.html($tabs);
             
-            $tabs.append(
-                _.each(parentTabs, function(id, label) {
-                    return _.div({class: 'tab chip'},
-                        _.p({class: 'chip-label'},
-                            label + ' (inherited)'
-                        )
-                    );
-                })
-            );
-
             $tabs.append(
                 _.each(view.model.tabs, (id, label) => {
                     return _.div({class: 'tab chip', 'data-id': id},
@@ -347,14 +296,16 @@ class SchemaEditor extends View {
      * @return {Object} element
      */
     renderIconEditor() {
+        if(this.model.isPropertyHidden('icon')) { return; }  
+        
         let view = this;
 
         function onClickBrowse() {
             function onSearch() {
-                let query = $element.find('.icon-search input').val().toLowerCase();
+                let query = modal.$element.find('.icon-search input').val().toLowerCase();
 
                 if(query.length > 2 || query.length == 0) {
-                    view.$element.find('.btn-icon').each(function(i) {
+                    modal.$element.find('.btn-icon').each(function(i) {
                         let $btn = $(this);
                         let name = $btn.children('.icon-name').html();
 
@@ -363,42 +314,34 @@ class SchemaEditor extends View {
                 }
             }
 
-            let $modal = _.div({class: 'modal modal-icon-picker fade'},
-                _.div({class: 'modal-dialog'},
-                    _.div({class: 'modal-content'},
-                        _.div({class: 'modal-body'},
-                            _.div({class: 'icon-search'},
-                                _.input({type: 'text', class: 'form-control', placeholder: 'Search for icons'})
-                                    .on('change', function(e) {
-                                        onSearch();
-                                    })
-                            ),
-                            _.each(icons, function(i, icon) {
-                                function onClickButton() {
-                                    view.model.icon = icon;
+            let modal = new MessageModal({
+                model: {
+                    class: 'modal-icon-picker',
+                    title: 'Pick an icon',
+                    body: [   
+                        _.div({class: 'icon-search'},
+                            _.input({type: 'text', class: 'form-control', placeholder: 'Search for icons'})
+                                .on('change', function(e) {
+                                    onSearch();
+                                })
+                        ),
+                        _.each(icons, function(i, icon) {
+                            function onClickButton() {
+                                view.model.icon = icon;
 
-                                    $element.find('.btn-icon-browse .fa').attr('class', 'fa fa-' + icon);
+                                view.$element.find('.btn-icon-browse .fa').attr('class', 'fa fa-' + icon);
 
-                                    $element.find('.modal').modal('hide');
-                                }
-                                
-                                return _.button({class: 'btn btn-default btn-icon'},
-                                    _.span({class: 'fa fa-' + icon}),
-                                    _.span({class: 'icon-name'}, icon)
-                                ).click(onClickButton);
-                            })
-                        )
-                    )
-                )
-            );
-            
-            $modal.on('hidden.bs.modal', function() {
-                $modal.remove();
+                                modal.hide();
+                            }
+                            
+                            return _.button({class: 'btn btn-icon'},
+                                _.span({class: 'fa fa-' + icon}),
+                                _.span({class: 'icon-name'}, icon)
+                            ).click(onClickButton);
+                        })
+                    ]
+                }
             });
-
-            $('body').append($modal);
-
-            $modal.modal('show');
         }
 
         let $element = _.div({class: 'icon-editor'},
@@ -421,47 +364,58 @@ class SchemaEditor extends View {
      * @return {Object} element
      */
     renderParentEditor() {
-        let view = this;
+        if(this.model.isPropertyHidden('parentSchemaId')) { return; }  
+        
+        let schemaOptions = [];
 
-        function onChange() {
-            view.model.parentSchemaId = $element.find('select').val();
-        }
+        // Filter out irrelevant schemas, self and children of self
+        let excludedParents = {};
+        excludedParents[this.model.id] = true;
 
-        function onClear() {
-            view.model.parentSchemaId = null;
-           
-            $element.find('select').val(null);
-        }
-
-        let schemas = {};
-
-        // TODO: Filter out irrelevant schemas and self
         for(let id in resources.schemas) {
-            if(resources.schemas[id].type == view.model.type) {
-                schemas[id] = resources.schemas[id];
+            let schema = resources.schemas[id];
+
+            // Check if this Schema has a parent in the excluded list
+            // If so, add this id to the excluded list
+            // This is to prevent making a Schema a child of its own children
+            if(excludedParents[schema.parentSchemaId] == true) {
+                excludedParents[schema.id] = true;
+                continue;
             }
+
+            // If this Schema is not of the same type as the model, or has the same id, exclude it
+            if(
+                schema.type != this.model.type ||
+                schema.id == this.model.id
+            ) {
+                continue;
+            }
+
+            schemaOptions[schemaOptions.length] = {
+                label: schema.name,
+                value: id
+            };
         }
 
+        // Assign fallback schema name
         let parentName = '(none)';
 
-        if(schemas[this.model.parentSchemaId]) {
-            parentName = schemas[this.model.parentSchemaId].name;
+        if(schemaOptions[this.model.parentSchemaId]) {
+            parentName = schemaOptions[this.model.parentSchemaId].name;
         }
 
+        // Render element
         let $element = _.div({class: 'parent-editor input-group'},
             _.if(!this.model.locked,
-                _.select({class: 'form-control'}, 
-                    _.each(schemas, function(id, schema) {
-                        return _.option({value: id}, schema.name);
-                    })
-                ).val(this.model.parentSchemaId).change(onChange),
-                _.if(!this.model.locked,
-                    _.div({class: 'input-group-btn'},
-                        _.button({class: 'btn btn-primary'},
-                            'Clear'
-                        ).click(onClear)
-                    )
-                )
+                UI.inputDropdownTypeAhead(this.model.parentSchemaId, schemaOptions, (newValue) => {
+                    if(!newValue) {
+                        newValue = this.model.type == 'field' ? 'fieldBase' : 'contentBase'; 
+                    }
+
+                    this.model.parentSchemaId = newValue;
+
+                    return newValue;
+                }, true)
             ),
             _.if(this.model.locked,
                 _.p({class: 'read-only'},
@@ -479,31 +433,28 @@ class SchemaEditor extends View {
      * @return {Object} element
      */
     renderDefaultTabEditor() {
-        let view = this;
+        if(this.model.isPropertyHidden('defaultTabId')) { return; }  
         
-        function onChange() {
-            view.model.defaultTabId = $element.find('select').val();
-        }
+        let tabOptions = [
+            { value: 'meta', label: 'Meta' }
+        ];
+        
+        // Sanity check
+        this.model.defaultTabId = this.model.defaultTabId || 'meta';
 
-        let tabs = {
-            meta: 'Meta'
-        };
-        
-        for(let k in view.compiledSchema.tabs) {
-            tabs[k] = view.compiledSchema.tabs[k];
+        for(let k in this.compiledSchema.tabs) {
+            tabOptions[tabOptions.length] = { value: k, label: this.compiledSchema.tabs[k] };
         }
 
         let $element = _.div({class: 'default-tab-editor'},
             _.if(!this.model.locked,
-                _.select({class: 'form-control'}, 
-                    _.each(tabs, function(id, label) {
-                        return _.option({value: id}, label);
-                    })
-                ).val(this.model.defaultTabId).change(onChange)
+                UI.inputDropdownTypeAhead(this.model.defaultTabId, tabOptions, (newValue) => {
+                    this.model.defaultTabId = newValue;
+                })
             ),
             _.if(this.model.locked,
                 _.p({class: 'read-only'},
-                    tabs[this.model.defaultTabId]
+                    this.compiledSchema.tabs[this.model.defaultTabId] || '(none)'
                 )
             )
         );
@@ -517,6 +468,8 @@ class SchemaEditor extends View {
      * @return {HTMLElement} Element
      */
     renderAllowedChildSchemasEditor() {
+        if(this.model.isPropertyHidden('allowedChildSchemas')) { return; }  
+       
         let view = this;
 
         function onChange() {
@@ -533,7 +486,14 @@ class SchemaEditor extends View {
             let newSchemaId = '';
 
             for(let id in resources.schemas) {
-                if(resources.schemas[id].type == 'content' &amp;&amp; view.model.allowedChildSchemas.indexOf(id) &lt; 0) {
+                let schema = resources.schemas[id];
+                
+                if(
+                    schema.type == 'content' &amp;&amp;
+                    view.model.allowedChildSchemas.indexOf(id) &lt; 0 &amp;&amp;
+                    schema.id != 'contentBase' &amp;&amp;
+                    schema.id != 'page'
+                ) {
                     newSchemaId = id;
                     break;
                 }
@@ -556,45 +516,56 @@ class SchemaEditor extends View {
                                     _.button({class: 'dropdown-toggle', 'data-id': schemaId, 'data-toggle': 'dropdown'},
                                         resources.schemas[schemaId].name
                                     ),
-                                    _.ul({class: 'dropdown-menu'},
-                                        _.each(resources.schemas, (id, schema) => {
-                                            if(schema.type == 'content' &amp;&amp; (id == schemaId || view.model.allowedChildSchemas.indexOf(schema.id) &lt; 0)) {
-                                                return _.li(
-                                                    _.a({href: '#', 'data-id': id},
-                                                        schema.name
-                                                    ).click(function(e) {
-                                                        e.preventDefault();
+                                    _.if(!view.model.locked,
+                                        _.ul({class: 'dropdown-menu'},
+                                            _.each(resources.schemas, (id, schema) => {
+                                                if(
+                                                    schema.type == 'content' &amp;&amp;
+                                                    (id == schemaId || view.model.allowedChildSchemas.indexOf(schema.id) &lt; 0) &amp;&amp;
+                                                    schema.id != 'contentBase' &amp;&amp;
+                                                    schema.id != 'page'
+                                                ) {
+                                                    return _.li(
+                                                        _.a({href: '#', 'data-id': id},
+                                                            schema.name
+                                                        ).click(function(e) {
+                                                            e.preventDefault();
+                                                                
+                                                            let $btn = $(this).parents('.dropdown').children('.dropdown-toggle');
                                                             
-                                                        let $btn = $(this).parents('.dropdown').children('.dropdown-toggle');
-                                                        
-                                                        $btn.text($(this).text());
-                                                        $btn.attr('data-id', $(this).attr('data-id'));
+                                                            $btn.text($(this).text());
+                                                            $btn.attr('data-id', $(this).attr('data-id'));
 
-                                                        onChange();
-                                                    })
-                                                );
-                                            }
-                                        })
+                                                            onChange();
+                                                        })
+                                                    );
+                                                }
+                                            })
+                                        )
                                     )
                                 ).change(onChange),
-                                _.button({class: 'btn chip-remove'},
-                                    _.span({class: 'fa fa-remove'})
-                                ).click(() => {
-                                    $schema.remove();        
+                                _.if(!view.model.locked,
+                                    _.button({class: 'btn chip-remove'},
+                                        _.span({class: 'fa fa-remove'})
+                                    ).click(() => {
+                                        $schema.remove();        
 
-                                    onChange();
-                                })
+                                        onChange();
+                                    })
+                                )
                             );
                             
                             return $schema;
 
                         } catch(e) {
-                            errorModal(e);
+                            UI.errorModal(e);
                         }
                     }),
-                    _.button({class: 'btn chip-add'},
-                        _.span({class: 'fa fa-plus'})
-                    ).click(onClickAdd)
+                    _.if(!view.model.locked,
+                        _.button({class: 'btn chip-add'},
+                            _.span({class: 'fa fa-plus'})
+                        ).click(onClickAdd)
+                    )
                 )
             );
         }
@@ -607,12 +578,93 @@ class SchemaEditor extends View {
     }
 
     /**
+     * Renders the field properties editor
+     *
+     * @returns {HTMLElement} Editor element
+     */
+    renderFieldPropertiesEditor() {
+        if(this.model.type == 'content') {
+            if(!this.model.fields) {
+                this.model.fields = {};
+            }
+            
+            if(!this.model.fields.properties) {
+                this.model.fields.properties = {};
+            }
+        
+            this.jsonEditor = new JSONEditor({
+                model: this.model.fields.properties,
+                embedded: true
+            });
+
+            this.jsonEditor.on('change', (newValue) => {
+                this.model.fields.properties = newValue;
+            });
+        
+        } else if(this.model.type == 'field') {
+            if(!this.model.config) {
+                this.model.config = {};
+            }
+            
+            this.jsonEditor = new JSONEditor({
+                model: this.model.config,
+                embedded: true
+            });
+
+            this.jsonEditor.on('change', (newValue) => {
+                this.model.config = newValue;
+            });
+        }
+
+        let $element = _.div({class: 'field-properties-editor'},
+            this.jsonEditor.$element
+        );
+
+        return $element;
+    }
+
+	/**
+	 * Render template editor
+	 *
+	 * @returns {HTMLElement} Element
+	 */
+	renderTemplateEditor() {
+        let $element = _.div({class: 'field-properties-editor'});
+
+		setTimeout(() => {
+			this.templateEditor = CodeMirror($element[0], {
+				value: this.model.previewTemplate || '',
+                mode: {
+                    name: 'xml'
+                },
+                lineWrapping: true,
+                lineNumbers: true,
+                tabSize: 4,
+                indentUnit: 4,
+                indentWithTabs: true
+			});
+
+			this.templateEditor.on('change', () => {
+				this.model.previewTemplate = this.templateEditor.getDoc().getValue();
+			});
+		}, 1);
+
+		return $element;
+	}
+
+    /**
      * Renders a single field
      *
-     * @return {Object} element
+     * @param {String} label
+     * @param {HTMLElement} content
+     * @param {Boolean} isVertical
+     *
+     * @return {HTMLElement} Editor element
      */
-    renderField(label, $content) {
-        return _.div({class: 'field-container'},
+    renderField(label, $content, isVertical) {
+        if(!$content) { return; }
+
+        return _.div({class: 'field-container ' + (isVertical ? 'vertical' : '')},
             _.div({class: 'field-key'},
                 label
             ),
@@ -630,59 +682,72 @@ class SchemaEditor extends View {
     renderFields() {
         let id = parseInt(this.model.id);
 
-        let $element = _.div({class: 'schema'});
+        let $element = _.div({class: 'schema editor-body'});
         
-        // Content type
         $element.empty();
 
         $element.append(this.renderField('Name', this.renderNameEditor())); 
         $element.append(this.renderField('Icon', this.renderIconEditor()));   
         $element.append(this.renderField('Parent', this.renderParentEditor()));
-
+        
         switch(this.model.type) {
             case 'content':
                 $element.append(this.renderField('Default tab', this.renderDefaultTabEditor()));
                 $element.append(this.renderField('Tabs', this.renderTabsEditor()));
                 $element.append(this.renderField('Allowed child Schemas', this.renderAllowedChildSchemasEditor()));
+                
+                if(!this.model.locked) {
+                    $element.append(this.renderField('Fields', this.renderFieldPropertiesEditor(), true));
+                }
+                
                 break;
 
             case 'field':
                 $element.append(this.renderField('Field editor', this.renderEditorPicker()));
+                
+                if(!this.model.locked) {
+                    $element.append(this.renderField('Config', this.renderFieldPropertiesEditor(), true));
+                    $element.append(this.renderField('Preview template', this.renderTemplateEditor(), true));
+                }
+       
                 break;
         }
+
 
         return $element;
     }
 
     render() {
-        SchemaHelper.getSchemaWithParentFields(this.model.parentSchemaId)
-        .then((parentSchema) => {
-            this.parentSchema = parentSchema;
+        if(this.model instanceof Schema === false) {
+            this.model = SchemaHelper.getModel(this.model);
+        }
 
-            SchemaHelper.getSchemaWithParentFields(this.model.id)
-            .then((compiledSchema) => {
-                this.compiledSchema = compiledSchema;
-                
-                _.append(this.$element.empty(),
-                    this.renderFields(),
-                    _.div({class: 'panel panel-default panel-buttons'}, 
-                        _.div({class: 'btn-group'},
-                            _.button({class: 'btn btn-embedded'},
-                                'Advanced'
-                            ).click(() => { this.onClickAdvanced(); }),
-                            _.if(!this.model.locked,
-                                _.button({class: 'btn btn-danger btn-raised'},
-                                    'Delete'
-                                ).click(() => { this.onClickDelete(); }),
-                                this.$saveBtn = _.button({class: 'btn btn-success btn-raised btn-save'},
-                                    _.span({class: 'text-default'}, 'Save '),
-                                    _.span({class: 'text-working'}, 'Saving ')
-                                ).click(() => { this.onClickSave(); })
-                            )
+        this.$element.toggleClass('locked', this.model.locked);
+
+        SchemaHelper.getSchemaWithParentFields(this.model.id)
+        .then((compiledSchema) => {
+            this.compiledSchema = compiledSchema;
+           
+            _.append(this.$element.empty(),
+                _.div({class: 'editor-header'},
+                    _.span({class: 'fa fa-' + this.compiledSchema.icon}),
+                    _.h4(this.model.name)
+                ),
+                this.renderFields(),
+                _.div({class: 'editor-footer panel panel-default panel-buttons'}, 
+                    _.div({class: 'btn-group'},
+                        _.button({class: 'btn btn-embedded'},
+                            'Advanced'
+                        ).click(() => { this.onClickAdvanced(); }),
+                        _.if(!this.model.locked,
+                            this.$saveBtn = _.button({class: 'btn btn-primary btn-raised btn-save'},
+                                _.span({class: 'text-default'}, 'Save '),
+                                _.span({class: 'text-working'}, 'Saving ')
+                            ).click(() => { this.onClickSave(); })
                         )
                     )
-                );
-            });
+                )
+            );
         });
     }
 }
@@ -698,13 +763,13 @@ module.exports = SchemaEditor;
 </div>
 
 <nav>
-    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="ApiController.html">ApiController</a></li><li><a href="ArrayEditor.html">ArrayEditor</a></li><li><a href="BooleanEditor.html">BooleanEditor</a></li><li><a href="Connection.html">Connection</a></li><li><a href="ConnectionController.html">ConnectionController</a></li><li><a href="Content.html">Content</a></li><li><a href="ContentController.html">ContentController</a></li><li><a href="ContentReferenceEditor.html">ContentReferenceEditor</a></li><li><a href="ContentSchema.html">ContentSchema</a></li><li><a href="ContentSchemaReferenceEditor.html">ContentSchemaReferenceEditor</a></li><li><a href="Controller.html">Controller</a></li><li><a href="DateEditor.html">DateEditor</a></li><li><a href="DropdownEditor.html">DropdownEditor</a></li><li><a href="Entity.html">Entity</a></li><li><a href="FieldSchema.html">FieldSchema</a></li><li><a href="Form.html">Form</a></li><li><a href="FormEditor.html">FormEditor</a></li><li><a href="JSONEditor.html">JSONEditor</a></li><li><a href="LanguageEditor.html">LanguageEditor</a></li><li><a href="LanguageSettings.html">LanguageSettings</a></li><li><a href="Media.html">Media</a></li><li><a href="MediaReferenceEditor.html">MediaReferenceEditor</a></li><li><a href="MessageModal.html">MessageModal</a></li><li><a href="NavbarMain.html">NavbarMain</a></li><li><a href="PeriodEditor.html">PeriodEditor</a></li><li><a href="ProjectHelper.html">ProjectHelper</a></li><li><a href="RichTextEditor.html">RichTextEditor</a></li><li><a href="Schema.html">Schema</a></li><li><a href="SchemaController.html">SchemaController</a></li><li><a href="SchemaEditor.html">SchemaEditor</a></li><li><a href="SchemaHelper.html">SchemaHelper</a></li><li><a href="StringEditor.html">StringEditor</a></li><li><a href="StructEditor.html">StructEditor</a></li><li><a href="TemplateReferenceEditor.html">TemplateReferenceEditor</a></li><li><a href="UrlEditor.html">UrlEditor</a></li><li><a href="UserHelper.html">UserHelper</a></li></ul>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="ApiController.html">ApiController</a></li><li><a href="AppHelper.html">AppHelper</a></li><li><a href="BackupHelper.html">BackupHelper</a></li><li><a href="BooleanEditor.html">BooleanEditor</a></li><li><a href="Connection.html">Connection</a></li><li><a href="ConnectionController.html">ConnectionController</a></li><li><a href="Content.html">Content</a></li><li><a href="ContentController.html">ContentController</a></li><li><a href="ContentReferenceEditor.html">ContentReferenceEditor</a></li><li><a href="ContentSchema.html">ContentSchema</a></li><li><a href="ContentSchemaReferenceEditor.html">ContentSchemaReferenceEditor</a></li><li><a href="Controller.html">Controller</a></li><li><a href="DateEditor.html">DateEditor</a></li><li><a href="DropdownEditor.html">DropdownEditor</a></li><li><a href="Entity.html">Entity</a></li><li><a href="FieldSchema.html">FieldSchema</a></li><li><a href="Form.html">Form</a></li><li><a href="FormEditor.html">FormEditor</a></li><li><a href="FormHelper.html">FormHelper</a></li><li><a href="InfoEditor.html">InfoEditor</a></li><li><a href="JSONEditor.html">JSONEditor</a></li><li><a href="LanguageEditor.html">LanguageEditor</a></li><li><a href="Media.html">Media</a></li><li><a href="MediaReferenceEditor.html">MediaReferenceEditor</a></li><li><a href="MessageModal.html">MessageModal</a></li><li><a href="MongoHelper.html">MongoHelper</a></li><li><a href="NavbarMain.html">NavbarMain</a></li><li><a href="NumberEditor.html">NumberEditor</a></li><li><a href="ProjectEditor.html">ProjectEditor</a></li><li><a href="ProjectHelper.html">ProjectHelper</a></li><li><a href="ProvidersSettings.html">ProvidersSettings</a></li><li><a href="RequestHelper.html">RequestHelper</a></li><li><a href="ResourceReferenceEditor.html">ResourceReferenceEditor</a></li><li><a href="RichTextEditor.html">RichTextEditor</a></li><li><a href="ScheduleController.html">ScheduleController</a></li><li><a href="ScheduleHelper.html">ScheduleHelper</a></li><li><a href="Schema.html">Schema</a></li><li><a href="SchemaController.html">SchemaController</a></li><li><a href="SchemaEditor.html">SchemaEditor</a></li><li><a href="SchemaHelper.html">SchemaHelper</a></li><li><a href="StringEditor.html">StringEditor</a></li><li><a href="StructEditor.html">StructEditor</a></li><li><a href="SyncEditor.html">SyncEditor</a></li><li><a href="SyncHelper.html">SyncHelper</a></li><li><a href="TagsEditor.html">TagsEditor</a></li><li><a href="Task.html">Task</a></li><li><a href="Template.html">Template</a></li><li><a href="TemplateEditor.html">TemplateEditor</a></li><li><a href="TemplateReferenceEditor.html">TemplateReferenceEditor</a></li><li><a href="UpdateHelper.html">UpdateHelper</a></li><li><a href="UrlEditor.html">UrlEditor</a></li><li><a href="UserHelper.html">UserHelper</a></li></ul>
 </nav>
 
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.0</a> on Mon Sep 05 2016 13:07:42 GMT+0200 (CEST)
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.3</a> on Mon May 29 2017 21:20:48 GMT+0200 (CEST)
 </footer>
 
 <script> prettyPrint(); </script>

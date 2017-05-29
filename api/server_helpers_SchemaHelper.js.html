@@ -126,65 +126,83 @@ class SchemaHelper extends SchemaHelperCommon {
     /**
      * Gets a list of all custom schema objects
      *
+     * @param {String} project
+     * @param {String} environment
+     *
      * @returns {Promise} Array of Schemas
      */
-    static getCustomSchemas() {
-        let collection = ProjectHelper.currentEnvironment + '.schemas';
-        
-        return new Promise((resolve, reject) => {
-            MongoHelper.find(
-                ProjectHelper.currentProject,
-                collection,
-                {}
-            ).then((result) => {
-                let schemas = {};
+    static getCustomSchemas(
+        project = requiredParam('project'),
+        environment = requiredParam('environment')
+    ) {
+        let collection = environment + '.schemas';
+        let result = [];
+       
+        return MongoHelper.find(
+            project,
+            collection,
+            {}
+        )
+        .then((result) => {
+            let schemas = {};
 
-                for(let i in result) {
-                    let schema = SchemaHelper.getModel(result[i]);
+            for(let i in result) {
+                let schema = SchemaHelper.getModel(result[i]);
 
-                    if(schema) {
-                        schemas[schema.id] = schema;
-                    
-                    } else {
+                if(schema) {
+                    schemas[schema.id] = schema;
+                
+                } else {
+                    return new Promise((resolve, reject) => {
                         reject(new Error('Schema data from DB is incorrect format: ' + JSON.stringify(result[i])));
-                        return;
-                    }
+                    });
                 }
+            }
 
-                resolve(schemas);
-            });
+            return SyncHelper.mergeResource(project, environment, 'schemas', schemas, { customOnly: true });
         });
     }
 
     /**
      * Gets a list of all schema objects
      *
+     * @param {String} project
+     * @param {String} environment
+     *
      * @returns {Promise} Array of Schemas
      */
-    static getAllSchemas() {
-        return new Promise((callback) => {
-            SchemaHelper.getNativeSchemas()
-            .then((nativeSchemas) => {
-                SchemaHelper.getCustomSchemas()
-                .then((customSchemas) => {
-                    let allSchemas = {};
-                    
-                    for(let id in nativeSchemas) {
-                        allSchemas[id] = nativeSchemas[id];   
-                    }
-                    
-                    for(let id in customSchemas) {
-                        allSchemas[id] = customSchemas[id];
-                    }
+    static getAllSchemas(
+        project = requiredParam('project'),
+        environment = requiredParam('environment')
+    ) {
+        let nativeSchemas;
+        let customSchemas;
 
-                    callback(allSchemas); 
-                });
-            });
+        return SchemaHelper.getNativeSchemas()
+        .then((result) => {
+            nativeSchemas = result;
+
+            return SchemaHelper.getCustomSchemas(project, environment);
+        })
+        .then((result) => {
+            customSchemas = result;
+
+            let allSchemas = {};
+            
+            for(let id in nativeSchemas) {
+                allSchemas[id] = nativeSchemas[id];   
+            }
+            
+            for(let id in customSchemas) {
+                allSchemas[id] = customSchemas[id];
+            }
+
+            return Promise.resolve(allSchemas);
         });
     }
 
     /**
-     * Checks whether a Schema id belongs to a ntive schema
+     * Checks whether a Schema id belongs to a native schema
      *
      * @param {String} id
      *
@@ -238,6 +256,7 @@ class SchemaHelper extends SchemaHelperCommon {
                             // Generated values, will be overwritten every time
                             properties.id = id;
                             properties.type = parentDirName;
+                            properties.locked = true;
 
                             resolve(properties);
                         }
@@ -250,41 +269,50 @@ class SchemaHelper extends SchemaHelperCommon {
     /**
      * Gets a Schema by id
      *
+     * @param {String} project
+     * @param {String} environment
      * @param {Number} id
      *
      * @return {Promise} Schema
      */
-    static getSchemaById(id) {
-        let collection = ProjectHelper.currentEnvironment + '.schemas';
+    static getSchemaById(
+        project = requiredParam('project'),
+        environment = requiredParam('environment'),
+        id = requiredParam('id')
+    ) {
+        let collection = environment + '.schemas';
 
-        return new Promise(function(resolve, reject) {
-            if(id) {
-                let promise = SchemaHelper.isNativeSchema(id) ?
-                    SchemaHelper.getNativeSchema(id) :
-                    MongoHelper.findOne(
-                        ProjectHelper.currentProject,
-                        collection,
-                        {
-                            id: id
-                        }
-                    );
-                
-                promise
-                .then((schemaData) => {
-                    if(schemaData &amp;&amp; Object.keys(schemaData).length > 0) {
+        if(id) {
+            let promise = SchemaHelper.isNativeSchema(id) ?
+                SchemaHelper.getNativeSchema(id) :
+                MongoHelper.findOne(
+                    project,
+                    collection,
+                    {
+                        id: id
+                    }
+                );
+            
+            return promise
+            .then((schemaData) => {
+                if(schemaData &amp;&amp; Object.keys(schemaData).length > 0) {
+                    return new Promise((resolve, reject) => {
                         let schema = SchemaHelper.getModel(schemaData);
                         resolve(schema);
-                    } else {
-                        reject(new Error('Schema with id "' + id + '" does not exist'));
-                    }
-                })
-                .catch(reject);
+                    });
+                
+                } else {
+                    return SyncHelper.getResourceItem(project, environment, 'schemas', id);
 
-            } else {
+                }
+            });
+
+        } else {
+            return new Promise((resolve, reject) => {
                 reject(new Error('Schema id is null'));
+            });
 
-            }
-        });
+        }
     }
    
     /**
@@ -295,7 +323,10 @@ class SchemaHelper extends SchemaHelperCommon {
      *
      * @returns {Schema} Merged Schema
      */
-    static mergeSchemas(childSchema, parentSchema) {
+    static mergeSchemas(
+        childSchema = requiredParam('childSchema'),
+        parentSchema = requiredParam('parentSchema')
+    ) {
         let mergedSchema = parentSchema;
 
         // Recursive merge
@@ -353,17 +384,23 @@ class SchemaHelper extends SchemaHelperCommon {
     /**
      * Gets all parent fields
      *
+     * @param {String} project
+     * @param {String} environment
      * @param {String} id
      *
      * @returns {Promise} Schema with all aprent fields
      */
-    static getSchemaWithParentFields(id) {
+    static getSchemaWithParentFields(
+        project = requiredParam('project'),
+        environment = requiredParam('environment'),
+        id = requiredParam('id')
+    ) {
         return new Promise((resolve, reject) => {
-            SchemaHelper.getSchemaById(id)
+            SchemaHelper.getSchemaById(project, environment, id)
             .then((schema) => {
                 // If this Schema has a parent, merge fields with it
                 if(schema.parentSchemaId) {
-                    SchemaHelper.getSchemaWithParentFields(schema.parentSchemaId)
+                    SchemaHelper.getSchemaWithParentFields(project, environment, schema.parentSchemaId)
                     .then((parentSchema) => {
                         let mergedSchema = SchemaHelper.mergeSchemas(schema, parentSchema);
                         let model = SchemaHelper.getModel(mergedSchema);
@@ -386,44 +423,109 @@ class SchemaHelper extends SchemaHelperCommon {
 
     
     /**
-     * Removes a schema object by id
+     * Removes a Schema object by id
      *
+     * @param {String} project
+     * @param {String} environment
      * @param {Number} id
      *
      * @return {Promise} Promise
      */
-    static removeSchema(id) {
-        let collection = ProjectHelper.currentEnvironment + '.schemas';
-       
-        return MongoHelper.removeOne(
-            ProjectHelper.currentProject,
-            collection,
-            {
-                id: id
-            }
-        );
+    static removeSchema(
+        project = requiredParam('project'),
+        environment = requiredParam('environment'),
+        id = requiredParam('id')
+    ) {
+        let collection = environment + '.schemas';
+        let thisSchema;
+      
+        // First get the Schema object
+        return this.getSchemaById(project, environment, id)
+
+        // Then get all custom Schemas
+        .then((result) => {
+            thisSchema = result;
+
+            return this.getCustomSchemas(project, environment);
+        })
+        
+        // Then check if any custom Schemas use this one as a parent
+        .then((customSchemas) => {
+            let checkNext = () => {
+                // Get next Schema
+                let customSchema;
+                
+                for(let id in customSchemas) {
+                    customSchema = customSchemas[id];
+                    delete customSchemas[id];
+                    break;
+                }
+
+                // If there are no more Schemas to check, resolve
+                if(!customSchema) { return Promise.resolve(); }
+
+                // If this custom Schema does not use the parent Schema, proceed to next
+                if(customSchema.parentSchemaId != thisSchema.id) { return checkNext(); }
+
+                // If it does use this parent, make it use its grandparent instead
+                customSchema.parentSchemaId = thisSchema.parentSchemaId;
+
+                return this.setSchema(project, environment, customSchema.id, customSchema)
+                .then(() => {
+                    return checkNext();  
+                });
+            };
+
+            return checkNext();
+        })
+
+        // Then remove the requested Schema
+        .then(() => {
+            return MongoHelper.removeOne(
+                project,
+                collection,
+                {
+                    id: id
+                }
+            );
+        });
     }
     
     /**
      * Sets a schema object by id
      *
+     * @param {String} project
+     * @param {String} environment
      * @param {Number} id
      * @param {Object} schema
+     * @param {Boolean} create
      *
      * @return {Promise} Promise
      */
-    static setSchema(id, schema) {
-        let collection = ProjectHelper.currentEnvironment + '.schemas';
+    static setSchema(
+        project = requiredParam('project'),
+        environment = requiredParam('environment'),
+        id = requiredParam('id'),
+        schema = requiredParam('schema'),
+        create = false
+    ) {
+        let collection = environment + '.schemas';
        
+        schema = schema || {};
+
+        // Unset automatic flags
+        schema.locked = false;
+        schema.remote = false;
+
         return MongoHelper.updateOne(
-            ProjectHelper.currentProject,
+            project,
             collection,
             {
                 id: id
             },
             schema,
             {
-                upsert: true
+                upsert: create // Creates a schema if none existed
             }
         );
     }
@@ -431,20 +533,26 @@ class SchemaHelper extends SchemaHelperCommon {
     /**
      * Creates a new Schema
      *
+     * @param {String} project
+     * @param {String} environment
      * @param {Schema} parentSchema
      *
      * @returns {Promise} Created Schema
      */
-    static createSchema(parentSchema) {
-        let collection = ProjectHelper.currentEnvironment + '.schemas';
+    static createSchema(
+        project = requiredParam('project'),
+        environment = requiredParam('environment'),
+        parentSchema
+    ) {
+        let collection = environment + '.schemas';
         let newSchema = Schema.create(parentSchema);
 
-        return new Promise((resolve) => {
-            MongoHelper.insertOne(
-                ProjectHelper.currentProject,
-                collection,
-                newSchema.getFields() 
-            ).then(() => {
+        return MongoHelper.insertOne(
+            project,
+            collection,
+            newSchema.getObject() 
+        ).then(() => {
+            return new Promise((resolve) => {
                 resolve(newSchema);
             });
         });
@@ -462,13 +570,13 @@ module.exports = SchemaHelper;
 </div>
 
 <nav>
-    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="ApiController.html">ApiController</a></li><li><a href="ArrayEditor.html">ArrayEditor</a></li><li><a href="BooleanEditor.html">BooleanEditor</a></li><li><a href="Connection.html">Connection</a></li><li><a href="ConnectionController.html">ConnectionController</a></li><li><a href="Content.html">Content</a></li><li><a href="ContentController.html">ContentController</a></li><li><a href="ContentReferenceEditor.html">ContentReferenceEditor</a></li><li><a href="ContentSchema.html">ContentSchema</a></li><li><a href="ContentSchemaReferenceEditor.html">ContentSchemaReferenceEditor</a></li><li><a href="Controller.html">Controller</a></li><li><a href="DateEditor.html">DateEditor</a></li><li><a href="DropdownEditor.html">DropdownEditor</a></li><li><a href="Entity.html">Entity</a></li><li><a href="FieldSchema.html">FieldSchema</a></li><li><a href="Form.html">Form</a></li><li><a href="FormEditor.html">FormEditor</a></li><li><a href="JSONEditor.html">JSONEditor</a></li><li><a href="LanguageEditor.html">LanguageEditor</a></li><li><a href="LanguageSettings.html">LanguageSettings</a></li><li><a href="Media.html">Media</a></li><li><a href="MediaReferenceEditor.html">MediaReferenceEditor</a></li><li><a href="MessageModal.html">MessageModal</a></li><li><a href="NavbarMain.html">NavbarMain</a></li><li><a href="PeriodEditor.html">PeriodEditor</a></li><li><a href="ProjectHelper.html">ProjectHelper</a></li><li><a href="RichTextEditor.html">RichTextEditor</a></li><li><a href="Schema.html">Schema</a></li><li><a href="SchemaController.html">SchemaController</a></li><li><a href="SchemaEditor.html">SchemaEditor</a></li><li><a href="SchemaHelper.html">SchemaHelper</a></li><li><a href="StringEditor.html">StringEditor</a></li><li><a href="StructEditor.html">StructEditor</a></li><li><a href="TemplateReferenceEditor.html">TemplateReferenceEditor</a></li><li><a href="UrlEditor.html">UrlEditor</a></li><li><a href="UserHelper.html">UserHelper</a></li></ul>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="ApiController.html">ApiController</a></li><li><a href="AppHelper.html">AppHelper</a></li><li><a href="BackupHelper.html">BackupHelper</a></li><li><a href="BooleanEditor.html">BooleanEditor</a></li><li><a href="Connection.html">Connection</a></li><li><a href="ConnectionController.html">ConnectionController</a></li><li><a href="Content.html">Content</a></li><li><a href="ContentController.html">ContentController</a></li><li><a href="ContentReferenceEditor.html">ContentReferenceEditor</a></li><li><a href="ContentSchema.html">ContentSchema</a></li><li><a href="ContentSchemaReferenceEditor.html">ContentSchemaReferenceEditor</a></li><li><a href="Controller.html">Controller</a></li><li><a href="DateEditor.html">DateEditor</a></li><li><a href="DropdownEditor.html">DropdownEditor</a></li><li><a href="Entity.html">Entity</a></li><li><a href="FieldSchema.html">FieldSchema</a></li><li><a href="Form.html">Form</a></li><li><a href="FormEditor.html">FormEditor</a></li><li><a href="FormHelper.html">FormHelper</a></li><li><a href="InfoEditor.html">InfoEditor</a></li><li><a href="JSONEditor.html">JSONEditor</a></li><li><a href="LanguageEditor.html">LanguageEditor</a></li><li><a href="Media.html">Media</a></li><li><a href="MediaReferenceEditor.html">MediaReferenceEditor</a></li><li><a href="MessageModal.html">MessageModal</a></li><li><a href="MongoHelper.html">MongoHelper</a></li><li><a href="NavbarMain.html">NavbarMain</a></li><li><a href="NumberEditor.html">NumberEditor</a></li><li><a href="ProjectEditor.html">ProjectEditor</a></li><li><a href="ProjectHelper.html">ProjectHelper</a></li><li><a href="ProvidersSettings.html">ProvidersSettings</a></li><li><a href="RequestHelper.html">RequestHelper</a></li><li><a href="ResourceReferenceEditor.html">ResourceReferenceEditor</a></li><li><a href="RichTextEditor.html">RichTextEditor</a></li><li><a href="ScheduleController.html">ScheduleController</a></li><li><a href="ScheduleHelper.html">ScheduleHelper</a></li><li><a href="Schema.html">Schema</a></li><li><a href="SchemaController.html">SchemaController</a></li><li><a href="SchemaEditor.html">SchemaEditor</a></li><li><a href="SchemaHelper.html">SchemaHelper</a></li><li><a href="StringEditor.html">StringEditor</a></li><li><a href="StructEditor.html">StructEditor</a></li><li><a href="SyncEditor.html">SyncEditor</a></li><li><a href="SyncHelper.html">SyncHelper</a></li><li><a href="TagsEditor.html">TagsEditor</a></li><li><a href="Task.html">Task</a></li><li><a href="Template.html">Template</a></li><li><a href="TemplateEditor.html">TemplateEditor</a></li><li><a href="TemplateReferenceEditor.html">TemplateReferenceEditor</a></li><li><a href="UpdateHelper.html">UpdateHelper</a></li><li><a href="UrlEditor.html">UrlEditor</a></li><li><a href="UserHelper.html">UserHelper</a></li></ul>
 </nav>
 
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.0</a> on Mon Sep 05 2016 13:07:42 GMT+0200 (CEST)
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.3</a> on Mon May 29 2017 21:20:48 GMT+0200 (CEST)
 </footer>
 
 <script> prettyPrint(); </script>

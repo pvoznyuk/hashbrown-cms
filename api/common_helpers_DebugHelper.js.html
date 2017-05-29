@@ -28,33 +28,9 @@
         <article>
             <pre class="prettyprint source linenums"><code>'use strict';
 
-let lastSenderName = '';
+const VERBOSITY = 2;
 
 class DebugHelper {
-    /**
-     * Logs a message
-     *
-     * @param {String} message
-     * @param {Object} sender
-     * @param {Number} verbosity
-     */
-    static log(message, sender, verbosity) {
-        if(verbosity == 0) {
-            this.error('Verbosity cannot be set to 0', this);
-
-        } else if(!verbosity) {
-            verbosity = 1;
-        }
-
-        if(this.verbosity >= verbosity) {
-            let senderString = this.parseSender(sender);
-            let dateString = this.getDateString();
-            
-            console.log(senderString, dateString, message);
-            this.onLog(senderString, dateString, message);
-        }
-    }
-
     /**
      * Event: Log
      *
@@ -74,15 +50,44 @@ class DebugHelper {
     static getDateString() {
         let date = new Date();
 
+        let monthString = (date.getMonth() + 1);
+
+        if(monthString &lt; 10) {
+            monthString = '0' + monthString;
+        }
+
+        let dateString = date.getDate();
+
+        if(dateString &lt; 10) {
+            dateString = '0' + dateString;
+        }
+        
+        let hoursString = date.getHours();
+
+        if(hoursString &lt; 10) {
+            hoursString = '0' + hoursString;
+        }
+        
+        let minutesString = date.getMinutes();
+
+        if(minutesString &lt; 10) {
+            minutesString = '0' + minutesString;
+        }
+        
+        let secondsString = date.getSeconds();
+
+        if(secondsString &lt; 10) {
+            secondsString = '0' + secondsString;
+        }
+
         let output =
-            '(' +
-            date.getFullYear() + '/' +
-            (date.getMonth() + 1) + '/' +
-            date.getDate() + '-' +
-            date.getHours() + ':' + 
-            date.getMinutes() + ':' + 
-            date.getSeconds() +
-            ')';
+            date.getFullYear() + '.' +
+            monthString + '.' +
+            dateString + ' ' +
+            hoursString + ':' + 
+            minutesString + ':' + 
+            secondsString +
+            ' |';
 
         return output;
     }
@@ -98,30 +103,46 @@ class DebugHelper {
         let senderName = '';
 
         if(sender) {
-            if(typeof sender === 'function') {
-                senderName += sender.name;
+            if(typeof sender === 'string') {
+                senderName = sender;
+
+            } else if(typeof sender === 'function') {
+                senderName = sender.name;
 
             } else if(sender.constructor) {
-                senderName += sender.constructor.name;
+                senderName = sender.constructor.name;
             
             } else {
-                senderName += sender.toString();
+                senderName = sender.toString();
 
             }
-
-            senderName;
         }
 
-        if(senderName == lastSenderName) {
-            senderName = '';
+        return senderName + ' |';
+    }
+    
+    /**
+     * Logs a message
+     *
+     * @param {String} message
+     * @param {Object} sender
+     * @param {Number} verbosity
+     */
+    static log(message, sender, verbosity = 1) {
+        if(verbosity == 0) {
+            DebugHelper.error('Verbosity cannot be set to 0', this);
 
-        } else {
-            lastSenderName = senderName;
-            senderName = '\n' + senderName + '\n----------\n';
-
+        } else if(!verbosity) {
+            verbosity = 1;
         }
 
-        return senderName;
+        if(VERBOSITY >= verbosity) {
+            let senderString = DebugHelper.parseSender(sender);
+            let dateString = DebugHelper.getDateString();
+            
+            console.log(dateString, senderString, message);
+            DebugHelper.onLog(dateString, senderString, message);
+        }
     }
 
     /**
@@ -131,15 +152,20 @@ class DebugHelper {
      * @param {Object} sender
      */
     static error(message, sender) {
-        console.log(this.parseSender(sender), this.getDateString(), message);
-        throw new Error(this.parseSender(sender) + ' ' + this.getDateString() + ' ' + message);
+        if(message instanceof Error) {
+            message = message.message || message.trace;
+        }
+
+        console.log(DebugHelper.getDateString(), DebugHelper.parseSender(sender), message);
+
+        throw new Error(message);
     }
 
     /**
      * Shows a warning
      */
     static warning(message, sender) {
-        console.log(this.parseSender(sender), this.getDateString(), message);
+        console.log(DebugHelper.getDateString(), DebugHelper.parseSender(sender), message);
         console.trace();
     }
 }
@@ -155,13 +181,13 @@ module.exports = DebugHelper;
 </div>
 
 <nav>
-    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="ApiController.html">ApiController</a></li><li><a href="ArrayEditor.html">ArrayEditor</a></li><li><a href="BooleanEditor.html">BooleanEditor</a></li><li><a href="Connection.html">Connection</a></li><li><a href="ConnectionController.html">ConnectionController</a></li><li><a href="Content.html">Content</a></li><li><a href="ContentController.html">ContentController</a></li><li><a href="ContentReferenceEditor.html">ContentReferenceEditor</a></li><li><a href="ContentSchema.html">ContentSchema</a></li><li><a href="ContentSchemaReferenceEditor.html">ContentSchemaReferenceEditor</a></li><li><a href="Controller.html">Controller</a></li><li><a href="DateEditor.html">DateEditor</a></li><li><a href="DropdownEditor.html">DropdownEditor</a></li><li><a href="Entity.html">Entity</a></li><li><a href="FieldSchema.html">FieldSchema</a></li><li><a href="Form.html">Form</a></li><li><a href="FormEditor.html">FormEditor</a></li><li><a href="JSONEditor.html">JSONEditor</a></li><li><a href="LanguageEditor.html">LanguageEditor</a></li><li><a href="LanguageSettings.html">LanguageSettings</a></li><li><a href="Media.html">Media</a></li><li><a href="MediaReferenceEditor.html">MediaReferenceEditor</a></li><li><a href="MessageModal.html">MessageModal</a></li><li><a href="NavbarMain.html">NavbarMain</a></li><li><a href="PeriodEditor.html">PeriodEditor</a></li><li><a href="ProjectHelper.html">ProjectHelper</a></li><li><a href="RichTextEditor.html">RichTextEditor</a></li><li><a href="Schema.html">Schema</a></li><li><a href="SchemaController.html">SchemaController</a></li><li><a href="SchemaEditor.html">SchemaEditor</a></li><li><a href="SchemaHelper.html">SchemaHelper</a></li><li><a href="StringEditor.html">StringEditor</a></li><li><a href="StructEditor.html">StructEditor</a></li><li><a href="TemplateReferenceEditor.html">TemplateReferenceEditor</a></li><li><a href="UrlEditor.html">UrlEditor</a></li><li><a href="UserHelper.html">UserHelper</a></li></ul>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="ApiController.html">ApiController</a></li><li><a href="AppHelper.html">AppHelper</a></li><li><a href="BackupHelper.html">BackupHelper</a></li><li><a href="BooleanEditor.html">BooleanEditor</a></li><li><a href="Connection.html">Connection</a></li><li><a href="ConnectionController.html">ConnectionController</a></li><li><a href="Content.html">Content</a></li><li><a href="ContentController.html">ContentController</a></li><li><a href="ContentReferenceEditor.html">ContentReferenceEditor</a></li><li><a href="ContentSchema.html">ContentSchema</a></li><li><a href="ContentSchemaReferenceEditor.html">ContentSchemaReferenceEditor</a></li><li><a href="Controller.html">Controller</a></li><li><a href="DateEditor.html">DateEditor</a></li><li><a href="DropdownEditor.html">DropdownEditor</a></li><li><a href="Entity.html">Entity</a></li><li><a href="FieldSchema.html">FieldSchema</a></li><li><a href="Form.html">Form</a></li><li><a href="FormEditor.html">FormEditor</a></li><li><a href="FormHelper.html">FormHelper</a></li><li><a href="InfoEditor.html">InfoEditor</a></li><li><a href="JSONEditor.html">JSONEditor</a></li><li><a href="LanguageEditor.html">LanguageEditor</a></li><li><a href="Media.html">Media</a></li><li><a href="MediaReferenceEditor.html">MediaReferenceEditor</a></li><li><a href="MessageModal.html">MessageModal</a></li><li><a href="MongoHelper.html">MongoHelper</a></li><li><a href="NavbarMain.html">NavbarMain</a></li><li><a href="NumberEditor.html">NumberEditor</a></li><li><a href="ProjectEditor.html">ProjectEditor</a></li><li><a href="ProjectHelper.html">ProjectHelper</a></li><li><a href="ProvidersSettings.html">ProvidersSettings</a></li><li><a href="RequestHelper.html">RequestHelper</a></li><li><a href="ResourceReferenceEditor.html">ResourceReferenceEditor</a></li><li><a href="RichTextEditor.html">RichTextEditor</a></li><li><a href="ScheduleController.html">ScheduleController</a></li><li><a href="ScheduleHelper.html">ScheduleHelper</a></li><li><a href="Schema.html">Schema</a></li><li><a href="SchemaController.html">SchemaController</a></li><li><a href="SchemaEditor.html">SchemaEditor</a></li><li><a href="SchemaHelper.html">SchemaHelper</a></li><li><a href="StringEditor.html">StringEditor</a></li><li><a href="StructEditor.html">StructEditor</a></li><li><a href="SyncEditor.html">SyncEditor</a></li><li><a href="SyncHelper.html">SyncHelper</a></li><li><a href="TagsEditor.html">TagsEditor</a></li><li><a href="Task.html">Task</a></li><li><a href="Template.html">Template</a></li><li><a href="TemplateEditor.html">TemplateEditor</a></li><li><a href="TemplateReferenceEditor.html">TemplateReferenceEditor</a></li><li><a href="UpdateHelper.html">UpdateHelper</a></li><li><a href="UrlEditor.html">UrlEditor</a></li><li><a href="UserHelper.html">UserHelper</a></li></ul>
 </nav>
 
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.0</a> on Mon Sep 05 2016 13:07:42 GMT+0200 (CEST)
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.3</a> on Mon May 29 2017 21:20:48 GMT+0200 (CEST)
 </footer>
 
 <script> prettyPrint(); </script>
