@@ -1,0 +1,15 @@
+/**
+ * General purpose utilities
+ */
+$xs-max: 'max-width: 767px';
+$sm-min: 'min-width: 768px';
+$sm-max: 'max-width: 991px';
+$md-min: 'min-width: 992px';
+$md-max: 'max-width: 1199px';
+$lg-min: 'min-width: 1200px';
+
+.container {
+    width: calc(100% - 2rem);
+    max-width: 60rem;
+    margin: 0 auto;
+}

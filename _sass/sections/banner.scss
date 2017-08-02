@@ -1,0 +1,43 @@
+/**
+ * A banner section (also known as a "hero" element)
+ */
+.section-banner {
+    height: 40vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    position: relative;
+    color: $color-secondary-alt;
+    padding-top: 2rem;
+
+    .page--home &:first-of-type {
+        height: 70vh;
+        text-align: center;
+
+        .container {
+            padding: 0;
+            border: 0;
+        }
+    }
+    
+    svg.logo {
+        fill: $color-primary;
+        width: 6rem;
+    }
+
+    .container {
+        padding-left: 2rem;
+        border-left: 2px solid $color-primary;
+    }
+
+    &__video-background {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        min-width: 100%;
+        min-height: 100%;
+        z-index: -1;
+    }
+}

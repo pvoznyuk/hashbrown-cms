@@ -1,21 +1,22 @@
-<nav>
+<nav class="main-menu">
     <div class="container">
-        <ul>
-            <li class="logo">
-                <a href="/"></a>
-            </li>
-            <li>
-                <a href="/getting-started">Getting started</a>
-            </li>
-            <li>
-                <a href="/guides">Guides</a>
-            </li>
-            <li>
-                <a href="/docs">Docs</a>
-            </li>
-            <li>
-                <a href="/features">Features</a>
-            </li>
-        </ul>
+        <a class="main-menu__brand" href="/">{% include main/logo.html  %}<span>HashBrown</span></a>
+        <div class="main-menu__subpages">
+            <input type="checkbox" class="main-menu__toggle">
+            <ul>
+                <li>
+                    <a href="/getting-started">Getting started</a>
+                </li>
+                <li>
+                    <a href="/guides">Guides</a>
+                </li>
+                <li>
+                    <a href="/docs">Docs</a>
+                </li>
+                <li>
+                    <a href="/features">Features</a>
+                </li>
+            </ul>
+        </div>
     </div>
 </nav>

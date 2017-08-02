@@ -9,21 +9,29 @@ layout: compress
     <body>
         {% include main/navigation.html %}
 
-        <div class="page"> 
-			<section class="banner">
-				<div class="container">
-					<h1>{{ page.title }}</h1>
-					<p>{{ page.description }}</p>
-				</div>
-			</section>
+        <div class="page {% if page.url == "/" %}page--home{% endif %}"> 
+            <section class="section-banner">
+                <div class="container">
+                    <video class="section-banner__video-background" loop muted autoplay poster="/assets/img/background-secondary.jpg">
+                        <source src="/assets/webm/background-secondary.webm" type="video/webm">
+                    </video>
+
+                    {% if page.url == "/" %}
+                        {% include main/logo.html %}
+                    {% endif %}
+
+                    <h1>{{ page.title }}</h1>
+                    <p>{{ page.description }}</p>
+                </div>
+            </section>
 
             {% for section in page.sections %}     
-                {% include hashbrown/render_section section = section %}
+            {% include hashbrown/render_section section = section %}
             {% endfor %}
         </div>
 
         {% include main/footer.html %}
-        
+
         {% include main/scripts.html %}
     </body>
 </html>

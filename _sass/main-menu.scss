@@ -1,0 +1,195 @@
+/**
+ * The main menu
+ */
+.main-menu {
+    transition: background-color 0.33s ease;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    z-index: 90;
+
+    .container {
+        height: 5rem;
+        transition: height 0.33s ease;
+        display: flex;
+        align-items: center;
+    }
+
+    // Toggle menu
+    &__toggle {
+        // Hide above mobile view
+        display: none;
+
+        @media($xs-max) {
+            cursor: pointer; 
+            appearance: none;
+            -moz-appearance: none;
+            -webkit-appearance: none;
+            -ms-appearance: none;
+            -safari-appearance: none;
+            display: block;
+            width: 3rem;
+            height: 3rem;
+            margin: 0 0 0 auto;
+            position: relative;
+
+            &:checked + ul {
+                transform: none;
+            }
+
+            &:not(:checked) + ul li a {
+                color: transparent !important;
+            }
+
+            &:focus {
+                outline: none;
+            }
+
+            // Unchecked state
+            &::before, &::after {
+                position: absolute;
+                display: block;
+                background-color: $color-secondary-alt;
+                transition: background-color 0.33s ease, transform 0.33s ease;
+                content: '';
+                width: 2rem;
+                height: 0.2rem;
+                top: 50%;
+                left: 50%;
+            }
+
+            &::before {
+                transform: translate(-50%, -200%);
+            }
+
+            &::after {
+                transform: translate(-50%, 200%);
+            }
+
+            // Checked state
+            &:checked::before {
+                transform: translate(-50%, -50%) rotate(45deg);
+            }
+            
+            &:checked::after {
+                transform: translate(-50%, -50%) rotate(-45deg);
+            }
+        }
+    }
+
+    // Fixed state
+    body.fixed-nav & {
+        background-color: $color-secondary;
+
+        .container {
+            height: 3.5rem;
+        }
+
+        &__subpages {
+            ul {
+                @media($xs-max) {
+                    top: 3.5rem;
+                }
+            }
+        }
+    }
+
+    // Normal state
+    &__brand {
+        height: 2rem;
+        display: block;
+        display: flex;
+        align-items: center;
+        text-decoration: none;
+
+        &:hover {
+            svg {
+                fill: $color-primary;
+            }
+
+            span {
+                border-color: $color-primary;
+            }
+        }
+
+        svg {
+            height: 100%;
+            width: auto;
+            fill: $color-secondary-alt;
+            transition: fill 0.33s ease;
+        }
+
+        span {
+            border-bottom: 2px solid transparent;
+            color: $color-secondary-alt;
+            font-weight: bold;
+            margin-left: 1rem;
+            transition: color 0.33s ease, border-color 0.33s ease;
+        }
+    }
+
+    &__subpages {
+        display: block;
+        flex-grow: 1;
+        text-align: right;
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        position: relative;
+           
+        ul {
+            padding: 0;
+            margin: 0;
+
+            @media($xs-max) {
+                position: fixed;
+                top: 5rem;
+                right: 0%;
+                transform: scaleY(0);
+                transform-origin: 0% 0%;
+                transition: transform 0.33s ease, background-color 0.33s ease, top 0.33s ease;
+                width: 100%;
+                display: flex;
+                flex-direction: column;
+                background-color: $color-secondary;
+            }
+                
+            li {
+                display: inline;
+                margin-left: 1rem;
+                padding: 2rem 0;
+
+                @media($xs-max) {
+                    margin: 0;
+                    flex-basis: 0;
+                    flex-grow: 1;
+                    display: block;
+                    text-align: center;
+                    text-transform: uppercase;
+                }
+
+                a {
+                    color: $color-secondary-alt;
+                    transition: color 0.33s ease;
+                    text-decoration: none;
+                    border-bottom: 2px solid transparent;
+                    transition: border-color 0.33s ease;
+
+                    &:hover {
+                        border-color: $color-primary;
+                    }
+
+                    @media($xs-max) {
+                        text-align: center;
+                        transition: color 0.33s ease;
+                        height: 100%;
+                        display: flex;
+                        justify-content: center;
+                        align-items: center;
+                    }
+                }
+            }
+        }
+    }
+}
