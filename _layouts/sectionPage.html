@@ -22,6 +22,10 @@ layout: compress
 
                     <h1>{{ page.title }}</h1>
                     <p>{{ page.description }}</p>
+                    
+                    {% if page.url == "/" %}
+                        <a href="//demo.hashbrown.rocks" target="_blank" class="btn">Demo</a>
+                    {% endif %}
                 </div>
             </section>
 
