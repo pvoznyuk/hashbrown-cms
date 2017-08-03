@@ -1,0 +1,26 @@
+/**
+ * A group of features
+ */
+.section-feature-group {
+    text-align: center;
+    padding: 3rem 0;
+
+    &__features {
+        text-align: left;
+        display: flex;
+        flex-wrap: wrap;
+        margin: -2rem;
+    }
+
+    &__feature {
+        flex-basis: 20%;
+        flex-grow: 1;
+        margin: 2rem;
+
+        h3 {
+            .fa {
+                margin-right: 1rem;
+            }
+        }
+    }
+}

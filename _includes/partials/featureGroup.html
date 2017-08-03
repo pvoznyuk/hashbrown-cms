@@ -1,0 +1,15 @@
+<section class="section-feature-group">
+    <h2>{{ include.section.heading }}</h2>
+    <h3>{{ include.section.subheading }}</h3>
+
+    <div class="container" >
+        <div class="section-feature-group__features">
+            {% for feature in include.section.features %}
+                <div class="section-feature-group__feature">
+                    <h3><span class="fa {{ feature.icon }}"></span>{{ feature.heading }}</h3>
+                    {{ feature.body }}
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
