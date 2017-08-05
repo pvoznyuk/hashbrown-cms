@@ -1,0 +1,19 @@
+/**
+ * Embedded content
+ */
+iframe[src*="https://docs.google.com/presentation"] {
+    width: 960px;
+    height: 569px;
+    display: block;
+    margin: 1rem auto;
+
+    @media($md-max) {
+        width: 700px;
+        height: 422px;
+    }
+    
+    @media($xs-max) {
+        width: 300px;
+        height: 198px;
+    }
+}
