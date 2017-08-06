@@ -1,0 +1,51 @@
+---
+permalink: /404.html
+---
+
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset='utf-8'>
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="robots" content"noindex, nofollow">
+
+        <link rel="stylesheet" type="text/css" href="/assets/lib/font-awesome/css/font-awesome.min.css" media="screen">
+        <link rel="stylesheet" type="text/css" href="/css/client.css" media="screen">
+        <link rel="canonical" href="http://hashbrown.rocks{{ page.url }}">
+        <link href="/favicon.png?v=2" rel="icon" type="image/png"/>
+
+        <title>Whoops!</title>
+        <meta name="description" content="This page does not exist">
+    </head>
+
+    <body>
+        {% include main/navigation.html %}
+
+        <div class="page {% if page.url == "/" %}page--home{% endif %}"> 
+            <section class="section-banner">
+                <div class="container">
+                    <video class="section-banner__video-background" loop muted autoplay poster="/assets/img/background-secondary.jpg">
+                        <source src="/assets/webm/background-secondary.webm" type="video/webm">
+                    </video>
+
+                    {% if page.url == "/" %}
+                        {% include main/logo.html %}
+                    {% endif %}
+
+                    <h1>Whoops!</h1>
+                    <h3>The page you're looking for does not exist (yet?)</h3>
+                    
+                    {% if page.url == "/" %}
+                        <a href="//demo.hashbrown.rocks" target="_blank" class="btn">Demo</a>
+                    {% endif %}
+                </div>
+            </section>
+
+        </div>
+
+        {% include main/footer.html %}
+
+        {% include main/scripts.html %}
+    </body>
+</html>

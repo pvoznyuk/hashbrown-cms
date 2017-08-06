@@ -6,4 +6,8 @@ body {
     color: $color-standard-alt;
     margin: 0;
     padding: 0;
+
+    .page {
+        min-height: calc(70vh - 4rem);
+    }
 }
