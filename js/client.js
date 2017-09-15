@@ -4,7 +4,7 @@
  * Scroll behaviour
  */
 window.onscroll = function(e) {
-    var STICKY_NAV_THRESHOLD = 10;
+    var scrollTop = document.body.scrollTop || document.documentElement.scrollTop;
 
-    document.body.classList.toggle('fixed-nav', document.body.scrollTop > STICKY_NAV_THRESHOLD);
+    document.body.classList.toggle('fixed-nav', scrollTop > 10);
 };
