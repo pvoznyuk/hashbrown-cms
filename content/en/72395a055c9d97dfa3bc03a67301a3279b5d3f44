@@ -1,0 +1,16 @@
+---
+title: Test
+sections:
+    -
+        template: banner
+        image: 50d05eee9088c589bfd5a5a3a3043c0ebcc4972b
+        text: "<p>Test</p>\n"
+meta:
+    id: 72395a055c9d97dfa3bc03a67301a3279b5d3f44
+    parentId: ""
+    language: en
+date: '2017-11-8'
+author: 'Horsey Horse'
+permalink: /test/
+layout: sectionPage
+---
