@@ -65,10 +65,10 @@ function initNewsFeed() {
 
             fetchedItems[item.id] = {
                 permalink: item.permalink,
-                image: item.preview && item.preview.images && item.preview.images.length > 0 && item.preview.images[0].source ? item.preview.images[0].source.url : null,
+                image: item.preview && item.preview.images && item.preview.images.length > 0 && item.preview.images[0].source ? item.preview.images[0].source.url : '/assets/svg/logo-pink.svg',
                 url: item.url,
                 title: item.title,
-                body: item.body
+                body: item.body || item.selftext
             };
         }
         
