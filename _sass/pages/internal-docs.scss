@@ -1,0 +1,103 @@
+/**
+ * The internal documentation page
+ */
+.page--internal-docs {
+    &__container {
+        display: flex;
+        width: calc(100% - 2rem);
+        margin: 0 auto;
+        max-width: 80rem;
+    }
+
+    &__nav {
+        flex-basis: 20rem;
+
+        // Hide the total list of classes
+        h2, h3:first-of-type, ul:first-of-type {
+            display: none;
+        }
+    }
+
+    &__content {
+        flex-grow: 1;
+
+        h4.name {
+            border-bottom: 1px solid $color-standard-dark;
+            padding-bottom: 0.5rem;
+            font-weight: bold;
+            font-size: 1.5rem;
+        }
+
+        h3.subsection-title {
+            font-size: 2rem;
+        }
+
+        h5 {
+            display: inline-block;
+            text-transform: uppercase;
+            font-weight: bold;
+        }
+
+        .param-desc {
+            display: inline-block;
+        }
+        
+        .param-desc + dl {
+            margin: 0;
+            display: inline-block;
+
+            dt {
+                display: none;
+            }
+
+            dd {
+                margin: 0;
+                padding: 0;
+
+                &::before { content: '{ '; }
+                &::after { content: '}'; }
+            }
+        }
+
+        table.params {
+            width: 100%;
+            border-spacing: 0.2rem;
+            border-collapse: separate;
+
+            thead, tr, td, tbody {
+                text-align: left;
+                border: 0;
+            }
+
+            tr {
+                margin-bottom: 0.5rem;
+            }
+
+            td {
+                line-height: 2rem;
+                padding: 0 0.5rem;
+
+                &:first-child {
+                    width: 10rem;
+                    background-color: $color-primary;
+                    color: $color-primary-alt;
+                    border-top-left-radius: 0.2rem;
+                    border-bottom-left-radius: 0.2rem;
+                }
+
+                &:not(:first-child):not(:last-child) {
+                    width: 10rem;
+                    font-family: 'RobotoMono', monospace;
+                    background-color: $color-secondary;
+                    color: $color-secondary-alt;
+                }
+
+                &:last-child {
+                    background-color: $color-standard-dark;
+                    border-top-right-radius: 0.2rem;
+                    border-bottom-right-radius: 0.2rem;
+                }
+            }
+        }
+    }
+}
