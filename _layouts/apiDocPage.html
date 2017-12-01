@@ -33,6 +33,8 @@ layout: compress
                 </nav>
 
                 <div class="page--docs__content">
+                    <div class="page--docs__disclaimer">All API calls must be authenticated. Use the /api/user/login endpoint to get a token and then append it to every request like so: /api/endpoint?token=12345678</div>
+
                     {% for category in page.categories %}
                         <a href="#{{ category }}" id="{{ category }}" name="{{ category }}"><h2>{{ category }}</h3></a>
                         
