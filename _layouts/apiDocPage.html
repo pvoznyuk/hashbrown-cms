@@ -62,9 +62,8 @@ layout: compress
 
                                             {% for field in endpoint.success.fields["Success 200"] %}
                                                 <div class="page--docs__entry__param">
-                                                    <div class="page--docs__entry__param__name">{{ field.field }}</div> 
                                                     <div class="page--docs__entry__param__type">{{ field.type }}</div> 
-                                                    <div class="page--docs__entry__param__description">{{ field.description }}</div> 
+                                                    <div class="page--docs__entry__param__description">{{ field.field | strip_html }} {{ field.description | strip_html }}</div> 
                                                 </div>
                                             {% endfor %}
                                         </div>
