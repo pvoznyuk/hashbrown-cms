@@ -1,5 +1,5 @@
 ---
-permalink: /docs/api
+permalink: /docs/api/
 layout: apiDocPage
 title: API docs
 description: The API documentation for HashBrown CMS
