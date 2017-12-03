@@ -1,0 +1,101 @@
+---
+layout: compress
+permalink: '/docs/api/'
+title: 'API: REST documentation'
+---
+
+<!DOCTYPE html>
+<html>
+    {% include main/head.html %}
+
+    <body>
+        {% include main/navigation.html %}
+
+        <div class="page page--docs"> 
+            <section class="section-banner">
+                <div class="container">
+                    <video class="section-banner__video-background" loop muted autoplay poster="/assets/img/bg-secondary.jpg">
+                        <source src="/assets/webm/bg-secondary.webm" type="video/webm">
+                    </video>
+
+                    <h1>{{ page.title }}</h1>
+                    <h3>{{ page.description }}</h3>
+                </div>
+            </section>
+
+            <div class="page--docs__container">
+                <nav class="page--docs__nav">
+                    <h3>Controllers</h3>
+                    
+                    <ul>
+                        {% for p in site.pages %}
+                            {% if p.kind == 'class' and p.shortname != 'ApiController' and p.shortname != 'Controller' and p.memberof == 'HashBrown.Server.Controllers' %}
+                                <li><a href="#{{ p.shortname }}">{{ p.shortname | replace: 'Controller', '' }}</a></li>
+                            {% endif %}
+                        {% endfor %}
+                    </ul>
+                </nav>
+
+                <div class="page--docs__content">
+                    <div class="page--docs__disclaimer">All API calls must be authenticated. Use the <a href="#UserController_login">/api/user/login</a> endpoint to get a token and then append it to every request like so: /api/endpoint?token=12345678</div>
+
+                    {% for p in site.pages %}
+                        {% if p.kind == 'class' and p.shortname != 'ApiController' and p.shortname != 'Controller' and p.memberof == 'HashBrown.Server.Controllers' %}
+                            <a href="#{{ p.shortname }}" id="{{ p.shortname}}" name="{{ p.shortname}}"><h2>{{ p.shortname | replace: 'Controller', '' }}</h2></a>
+
+                            {% for method in p.methods %}
+                                {% if method.examples %}
+                                    <div class="page--docs__entry">
+                                        <a class="page--docs__entry__name" href="#{{ p.shortname }}_{{ method.name }}" id="{{ p.shortname }}_{{ method.name }}" name="{{ p.shortname }}_{{ method.name }}"><h3>{{ method.name }}</h3></a>
+                                        <div class="page--docs__entry__description">{{ method.description }}</div>
+                        
+                                        {% for example in method.examples %}
+                                            <div class="page--docs__entry__example">{{ example }}</div>
+                                        {% endfor %}
+
+                                        {% if method.params %}
+                                            <div class="page--docs__entry__params">
+                                                <h4>Parameters</h4>
+
+                                                {% for param in method.params %}
+                                                    <div class="page--docs__entry__param">
+                                                        <div class="page--docs__entry__param__name">{{ param.name }}</div> 
+                                                        {% for type in param.type.names %}
+                                                            <div class="page--docs__entry__param__type">{{ type }}</div>
+                                                        {% endfor %}
+                                                        {% if param.description %}
+                                                            <div class="page--docs__entry__param__description">{{ param.description }}</div> 
+                                                        {% endif %}
+                                                    </div>
+                                                {% endfor %}
+                                            </div>
+                                        {% endif %}
+                                        
+                                        {% if method.returns %}
+                                            <div class="page--docs__entry__return">
+                                                <h4>Returns</h4>
+
+                                                {% for returns in method.returns %}
+                                                    <div class="page--docs__entry__param">
+                                                        {% for type in returns.type.names %}
+                                                            <div class="page--docs__entry__param__type">{{ type }}</div> 
+                                                        {% endfor %}
+                                                        <div class="page--docs__entry__param__description">{{ returns.description }}</div> 
+                                                    </div>
+                                                {% endfor %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                {% endif %}
+                            {% endfor %}
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        {% include main/footer.html %}
+
+        {% include main/scripts.html %}
+    </body>
+</html>

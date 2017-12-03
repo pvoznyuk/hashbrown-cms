@@ -10,7 +10,8 @@
     }
 
     &__nav {
-        flex-basis: 20rem;
+        flex-basis: 24rem;
+        flex-shrink: 0;
     }
 
     &__disclaimer {
@@ -47,7 +48,15 @@
                 border-bottom-left-radius: 0;
             }
         }
-        
+       
+        &__example {
+            background-color: $color-secondary;
+            color: $color-secondary-alt;
+            padding: 0.5rem;
+            border-radius: 0.2rem;
+            margin-bottom: 1rem;
+        }
+
         &__params {
             width: 100%;
         }
@@ -64,8 +73,6 @@
 
             &__name {
                 flex-basis: 10rem;
-                border-top-left-radius: 0.2rem;
-                border-bottom-left-radius: 0.2rem;
                 border-right: 1px solid $color-standard;
             }
 
@@ -75,97 +82,10 @@
                 border-right: 1px solid $color-standard;
                 text-align: center;
             }
-                
-            &__description {
-                flex-grow: 1;
-                border-top-right-radius: 0.2rem;
-                border-bottom-right-radius: 0.2rem;
-            
-                p { margin: 0; }
-            }
         }
     }
 
     &__content {
         flex-grow: 1;
-
-        h4.name {
-            border-bottom: 1px solid $color-standard-dark;
-            padding-bottom: 0.5rem;
-            font-weight: bold;
-            font-size: 1.5rem;
-        }
-
-        h3.subsection-title {
-            font-size: 2rem;
-        }
-
-        h5 {
-            display: inline-block;
-            text-transform: uppercase;
-            font-weight: bold;
-        }
-
-        .param-desc {
-            display: inline-block;
-        }
-        
-        .param-desc + dl {
-            margin: 0;
-            display: inline-block;
-
-            dt {
-                display: none;
-            }
-
-            dd {
-                margin: 0;
-                padding: 0;
-
-                &::before { content: '{ '; }
-                &::after { content: '}'; }
-            }
-        }
-
-        table.params {
-            width: 100%;
-            border-spacing: 0.2rem;
-            border-collapse: separate;
-
-            thead, tr, td, tbody {
-                text-align: left;
-                border: 0;
-            }
-
-            tr {
-                margin-bottom: 0.5rem;
-            }
-
-            td {
-                line-height: 2rem;
-                padding: 0 0.5rem;
-
-                &:first-child {
-                    width: 10rem;
-                    background-color: $color-primary;
-                    color: $color-primary-alt;
-                    border-top-left-radius: 0.2rem;
-                    border-bottom-left-radius: 0.2rem;
-                }
-
-                &:not(:first-child):not(:last-child) {
-                    width: 10rem;
-                    font-family: 'RobotoMono', monospace;
-                    background-color: $color-secondary;
-                    color: $color-secondary-alt;
-                }
-
-                &:last-child {
-                    background-color: $color-standard-dark;
-                    border-top-right-radius: 0.2rem;
-                    border-bottom-right-radius: 0.2rem;
-                }
-            }
-        }
     }
 }
