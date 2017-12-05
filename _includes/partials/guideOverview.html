@@ -1,0 +1,44 @@
+<section class="child-links">
+    <div class="container">
+        <ul>
+            {% include hashbrown/get_child_content_ids id=page.meta.id %}
+            {% assign child_ids = result %}
+
+            <h2>Beginner</h2>
+            {% for child_id in child_ids %}
+                {% include hashbrown/get_content_by_id id=child_id %}
+                {% assign child = result %}
+
+                {% if child.level == 'beginner' %}
+                    <li>
+                        <a href="{{ child.url }}">{{ child.title }}</a>
+                    </li>
+                {% endif %}
+            {% endfor %}
+            
+            <h2>Intermediate</h2>
+            {% for child_id in child_ids %}
+                {% include hashbrown/get_content_by_id id=child_id %}
+                {% assign child = result %}
+
+                {% if child.level == 'intermediate' %}
+                    <li>
+                        <a href="{{ child.url }}">{{ child.title }}</a>
+                    </li>
+                {% endif %}
+            {% endfor %}
+            
+            <h2>Advanced</h2>
+            {% for child_id in child_ids %}
+                {% include hashbrown/get_content_by_id id=child_id %}
+                {% assign child = result %}
+
+                {% if child.level == 'advanced' %}
+                    <li>
+                        <a href="{{ child.url }}">{{ child.title }}</a>
+                    </li>
+                {% endif %}
+            {% endfor %}
+        </ul>
+    </div>
+</section>
