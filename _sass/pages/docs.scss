@@ -12,6 +12,17 @@
     &__nav {
         flex-basis: 24rem;
         flex-shrink: 0;
+
+        ul {
+            list-style-type: none;
+            padding-left: 0;
+
+            li {
+                padding-left: 1rem;
+                border-left: 2px solid $color-primary;
+                margin-bottom: 0.5rem;
+            }
+        }
     }
 
     &__disclaimer {

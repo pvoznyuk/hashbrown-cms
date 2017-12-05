@@ -10,4 +10,8 @@ body {
     .page {
         min-height: calc(70vh - 4rem);
     }
+
+    * {
+        box-sizing: border-box;
+    }
 }

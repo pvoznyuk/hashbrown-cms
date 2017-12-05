@@ -1,10 +1,10 @@
 <section class="section section--guide-overview">
     <div class="container">
-        <ul>
-            {% include hashbrown/get_child_content_ids id=page.meta.id %}
-            {% assign child_ids = result %}
+        {% include hashbrown/get_child_content_ids id=page.meta.id %}
+        {% assign child_ids = result %}
 
-            <h2>Beginner</h2>
+        <h2>Beginner</h2>
+        <ul>
             {% for child_id in child_ids %}
                 {% include hashbrown/get_content_by_id id=child_id %}
                 {% assign child = result %}
@@ -15,8 +15,10 @@
                     </li>
                 {% endif %}
             {% endfor %}
+        </ul>
             
-            <h2>Intermediate</h2>
+        <h2>Intermediate</h2>
+        <ul>
             {% for child_id in child_ids %}
                 {% include hashbrown/get_content_by_id id=child_id %}
                 {% assign child = result %}
@@ -27,8 +29,10 @@
                     </li>
                 {% endif %}
             {% endfor %}
+        </ul>
             
-            <h2>Advanced</h2>
+        <h2>Advanced</h2>
+        <ul>
             {% for child_id in child_ids %}
                 {% include hashbrown/get_content_by_id id=child_id %}
                 {% assign child = result %}
