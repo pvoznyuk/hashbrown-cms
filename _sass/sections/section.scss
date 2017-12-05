@@ -1,0 +1,19 @@
+.section {
+    a {
+        text-decoration-color: $color-secondary;
+        
+        &:hover {
+            text-decoration-color: $color-primary;
+        }
+    }
+
+    ul {
+        list-style-type: none;
+
+        li {
+            padding-left: 1rem;
+            border-left: 2px solid $color-primary;
+            margin-bottom: 0.5rem;
+        }
+    }
+}

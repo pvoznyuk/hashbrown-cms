@@ -22,11 +22,11 @@ permalink: /404.html
     <body>
         {% include main/navigation.html %}
 
-        <div class="page {% if page.url == "/" %}page--home{% endif %}"> 
-            <section class="section-banner">
+        <div class="page page--404"> 
+            <section class="section--banner">
                 <div class="container">
-                    <video class="section-banner__video-background" loop muted autoplay poster="/assets/img/background-secondary.jpg">
-                        <source src="/assets/webm/background-secondary.webm" type="video/webm">
+                    <video class="section--banner__video-background" loop muted autoplay poster="/assets/img/bg-secondary.jpg">
+                        <source src="/assets/webm/bg-secondary.webm" type="video/webm">
                     </video>
 
                     {% if page.url == "/" %}
