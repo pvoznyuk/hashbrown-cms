@@ -127,6 +127,36 @@ class ConnectionHelper extends ConnectionHelperCommon {
             ProjectHelper.currentEnvironment
         );
     }
+
+    /**
+     * Starts a tour of the Connection section
+     */
+    static startTour() {
+        if(location.hash.indexOf('connections/') < 0) {
+            location.hash = '/connections/';
+        }
+       
+        return new Promise((resolve) => {
+            setTimeout(() => {
+                resolve();
+            }, 100);
+        })
+        .then(() => {
+            return UI.highlight('.navbar-main__tab[data-route="/connections/"]', 'This the Connections section, where the you define how HashBrown interacts with Media, Templates and Content.', 'right', 'next')
+        })
+        .then(() => {
+            return UI.highlight('.navbar-main__pane[data-route="/connections/"]', 'Here you will find all of your Connections. You can right click here to create a new Connection.', 'right', 'next');
+        })
+        .then(() => {
+            let editor = document.querySelector('.editor--connection');
+
+            if(!editor) {
+                return UI.highlight('.page--environment__space--editor', 'This is where the Connection editor will be when you click a Connection.', 'left', 'ok');
+            }
+                
+            return UI.highlight('.editor--connection', 'This is the Connection editor, where you edit Connections.', 'left', 'ok');
+        });
+    }
 }
 
 module.exports = ConnectionHelper;

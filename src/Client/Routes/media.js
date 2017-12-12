@@ -10,7 +10,12 @@ Crisp.Router.route('/media/', function() {
     UI.setEditorSpaceContent(
         [
             _.h1('Media'),
-            _.p('Right click in the Media pane to upload, edit and sort Media items.'),
+            _.p('Click the button below to start a tour of the Media section.'),
+            _.button({class: 'widget widget--button condensed', title: 'Click here to start the tour'}, 'Start tour')
+                .click(() => {
+                    HashBrown.Helpers.MediaHelper.startTour();
+                }),
+            _.p('Click the button below to start uploading Media files.'),
             _.button({class: 'widget widget--button'}, 'Upload media')
                 .click(() => {
                     new HashBrown.Views.Modals.MediaUploader({

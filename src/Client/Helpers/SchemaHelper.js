@@ -106,6 +106,36 @@ class SchemaHelper extends SchemaHelperCommon {
             }
         }
     }
+    
+    /**
+     * Starts a tour of the Schemas section
+     */
+    static startTour() {
+        if(location.hash.indexOf('schemas/') < 0) {
+            location.hash = '/schemas/';
+        }
+       
+        return new Promise((resolve) => {
+            setTimeout(() => {
+                resolve();
+            }, 100);
+        })
+        .then(() => {
+            return UI.highlight('.navbar-main__tab[data-route="/schemas/"]', 'This the Schemas section, where the you define how your Content is built.', 'right', 'next')
+        })
+        .then(() => {
+            return UI.highlight('.navbar-main__pane[data-route="/schemas/"]', 'Here you will find all of your Schemas. You can right click here to create a new Schema.', 'right', 'next');
+        })
+        .then(() => {
+            let editor = document.querySelector('.editor--schema');
+
+            if(!editor) {
+                return UI.highlight('.page--environment__space--editor', 'This is where the Schema editor will be when you click a Schema.', 'left', 'ok');
+            }
+                
+            return UI.highlight('.editor--schema', 'This is the Schema editor, where you edit Schemas.', 'left', 'ok');
+        });
+    }
 }
 
 module.exports = SchemaHelper;

@@ -141,7 +141,7 @@ class ContentHelper extends ContentHelperCommon {
         return new Promise((resolve) => {
             setTimeout(() => {
                 resolve();
-            }, 500);
+            }, 100);
         })
         .then(() => {
             return UI.highlight('.navbar-main__tab[data-route="/content/"]', 'This the Content section, where you will do all of your authoring.', 'right', 'next')
@@ -153,10 +153,10 @@ class ContentHelper extends ContentHelperCommon {
             let editor = document.querySelector('.editor--content');
 
             if(!editor) {
-                return UI.highlight('.page--environment__space--editor', 'This is where the Content editor will be when you click a Content node.', 'left', 'next');
+                return UI.highlight('.page--environment__space--editor', 'This is where the Content editor will be when you click a Content node.', 'left', 'ok');
             }
                 
-            return UI.highlight('.editor--content', 'This is the Content editor, where you edit Content nodes.', 'left', 'next');
+            return UI.highlight('.editor--content', 'This is the Content editor, where you edit Content nodes.', 'left', 'ok');
         });
     }
 }

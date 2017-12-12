@@ -7111,6 +7111,35 @@ var SchemaHelper = function (_SchemaHelperCommon) {
         }
     };
 
+    /**
+     * Starts a tour of the Schemas section
+     */
+
+
+    SchemaHelper.startTour = function startTour() {
+        if (location.hash.indexOf('schemas/') < 0) {
+            location.hash = '/schemas/';
+        }
+
+        return new Promise(function (resolve) {
+            setTimeout(function () {
+                resolve();
+            }, 100);
+        }).then(function () {
+            return UI.highlight('.navbar-main__tab[data-route="/schemas/"]', 'This the Schemas section, where the you define how your Content is built.', 'right', 'next');
+        }).then(function () {
+            return UI.highlight('.navbar-main__pane[data-route="/schemas/"]', 'Here you will find all of your Schemas. You can right click here to create a new Schema.', 'right', 'next');
+        }).then(function () {
+            var editor = document.querySelector('.editor--schema');
+
+            if (!editor) {
+                return UI.highlight('.page--environment__space--editor', 'This is where the Schema editor will be when you click a Schema.', 'left', 'ok');
+            }
+
+            return UI.highlight('.editor--schema', 'This is the Schema editor, where you edit Schemas.', 'left', 'ok');
+        });
+    };
+
     return SchemaHelper;
 }(SchemaHelperCommon);
 
@@ -7853,6 +7882,35 @@ var MediaHelper = function (_MediaHelperCommon) {
 
         // Set visual fixes for media picker mode
         $('.page--environment').addClass('media-picker');
+    };
+
+    /**
+     * Starts a tour of the Media section
+     */
+
+
+    MediaHelper.startTour = function startTour() {
+        if (location.hash.indexOf('media/') < 0) {
+            location.hash = '/media/';
+        }
+
+        return new Promise(function (resolve) {
+            setTimeout(function () {
+                resolve();
+            }, 100);
+        }).then(function () {
+            return UI.highlight('.navbar-main__tab[data-route="/media/"]', 'This the Media section, where all of your images, videos and other documents are.', 'right', 'next');
+        }).then(function () {
+            return UI.highlight('.navbar-main__pane[data-route="/media/"]', 'Here you will find all of your Media nodes, if you have set up a Connection as a Media provider. You can right click here to upload new Media content.', 'right', 'next');
+        }).then(function () {
+            var editor = document.querySelector('.editor--media');
+
+            if (!editor) {
+                return UI.highlight('.page--environment__space--editor', 'This is where the Media viewer will be when you click a Media node.', 'left', 'ok');
+            }
+
+            return UI.highlight('.editor--content', 'This is the Media viewer, where you preview Media nodes.', 'left', 'ok');
+        });
     };
 
     return MediaHelper;
@@ -9331,7 +9389,7 @@ var ContentHelper = function (_ContentHelperCommon) {
         return new Promise(function (resolve) {
             setTimeout(function () {
                 resolve();
-            }, 500);
+            }, 100);
         }).then(function () {
             return UI.highlight('.navbar-main__tab[data-route="/content/"]', 'This the Content section, where you will do all of your authoring.', 'right', 'next');
         }).then(function () {
@@ -9340,10 +9398,10 @@ var ContentHelper = function (_ContentHelperCommon) {
             var editor = document.querySelector('.editor--content');
 
             if (!editor) {
-                return UI.highlight('.page--environment__space--editor', 'This is where the Content editor will be when you click a Content node.', 'left', 'next');
+                return UI.highlight('.page--environment__space--editor', 'This is where the Content editor will be when you click a Content node.', 'left', 'ok');
             }
 
-            return UI.highlight('.editor--content', 'This is the Content editor, where you edit Content nodes.', 'left', 'next');
+            return UI.highlight('.editor--content', 'This is the Content editor, where you edit Content nodes.', 'left', 'ok');
         });
     };
 
@@ -16583,6 +16641,35 @@ var ConnectionHelper = function (_ConnectionHelperComm) {
 
     ConnectionHelper.getTemplateProvider = function getTemplateProvider() {
         return _ConnectionHelperComm.getTemplateProvider.call(this, ProjectHelper.currentProject, ProjectHelper.currentEnvironment);
+    };
+
+    /**
+     * Starts a tour of the Connection section
+     */
+
+
+    ConnectionHelper.startTour = function startTour() {
+        if (location.hash.indexOf('connections/') < 0) {
+            location.hash = '/connections/';
+        }
+
+        return new Promise(function (resolve) {
+            setTimeout(function () {
+                resolve();
+            }, 100);
+        }).then(function () {
+            return UI.highlight('.navbar-main__tab[data-route="/connections/"]', 'This the Connections section, where the you define how HashBrown interacts with Media, Templates and Content.', 'right', 'next');
+        }).then(function () {
+            return UI.highlight('.navbar-main__pane[data-route="/connections/"]', 'Here you will find all of your Connections. You can right click here to create a new Connection.', 'right', 'next');
+        }).then(function () {
+            var editor = document.querySelector('.editor--connection');
+
+            if (!editor) {
+                return UI.highlight('.page--environment__space--editor', 'This is where the Connection editor will be when you click a Connection.', 'left', 'ok');
+            }
+
+            return UI.highlight('.editor--connection', 'This is the Connection editor, where you edit Connections.', 'left', 'ok');
+        });
     };
 
     return ConnectionHelper;
@@ -31030,9 +31117,9 @@ var Input = function (_Widget) {
                 }), _.div({ class: 'widget--input__range-extra' }, this.value));
 
             case 'checkbox':
-                return _.div({ class: config.class, title: config.title }, _.if(config.placeholder, _.label({ for: 'checkbox-' + this.guid, class: 'widget--input__checkbox-label' }, config.placeholder)), _.input({ id: 'checkbox-' + this.guid, class: 'widget--input__checkbox-input', type: 'checkbox', checked: this.value }).on('change', function (e) {
+                return _.div({ class: config.class, title: config.title }, _.input({ id: 'checkbox-' + this.guid, class: 'widget--input__checkbox-input', type: 'checkbox', checked: this.value }).on('change', function (e) {
                     _this2.onChangeInternal(e.currentTarget.checked);
-                }), _.div({ class: 'widget--input__checkbox-background' }), _.div({ class: 'widget--input__checkbox-switch' }));
+                }), _.if(config.placeholder, _.label({ for: 'checkbox-' + this.guid, class: 'widget--input__checkbox-label' }, config.placeholder)), _.div({ class: 'widget--input__checkbox-background' }), _.div({ class: 'widget--input__checkbox-switch' }));
 
             case 'file':
                 return _.form({ class: config.class + (typeof this.onSubmit === 'function' ? ' widget-group' : ''), title: config.title }, _.label({ for: 'file-' + this.guid, class: 'widget--input__file-browse widget widget--button expanded' }, this.placeholder || 'Browse...'), _.input({ id: 'file-' + this.guid, class: 'widget--input__file-input', type: 'file', name: this.name || 'file', multiple: this.useMultiple, directory: this.useDirectory }).on('change', function (e) {
@@ -32914,6 +33001,7 @@ module.exports = {
     ConnectionHelper: __webpack_require__(98),
     ContentHelper: __webpack_require__(38),
     DebugHelper: __webpack_require__(212),
+    FormHelper: __webpack_require__(299),
     LanguageHelper: __webpack_require__(99),
     MediaHelper: __webpack_require__(28),
     ProjectHelper: __webpack_require__(5),
@@ -33255,6 +33343,35 @@ var TemplateHelper = function () {
         return null;
     };
 
+    /**
+     * Starts a tour of the Template section
+     */
+
+
+    TemplateHelper.startTour = function startTour() {
+        if (location.hash.indexOf('templates/') < 0) {
+            location.hash = '/templates/';
+        }
+
+        return new Promise(function (resolve) {
+            setTimeout(function () {
+                resolve();
+            }, 100);
+        }).then(function () {
+            return UI.highlight('.navbar-main__tab[data-route="/templates/"]', 'This the Templates section, where the you define how your Content looks on your website.', 'right', 'next');
+        }).then(function () {
+            return UI.highlight('.navbar-main__pane[data-route="/templates/"]', 'Here you will find all of your Templates, if you have set up a Connection as the Template provider. You can right click here to create a new Template.', 'right', 'next');
+        }).then(function () {
+            var editor = document.querySelector('.editor--template');
+
+            if (!editor) {
+                return UI.highlight('.page--environment__space--editor', 'This is where the Template editor will be when you click a Template.', 'left', 'ok');
+            }
+
+            return UI.highlight('.editor--template', 'This is the Template editor, where you edit Templates.', 'left', 'ok');
+        });
+    };
+
     return TemplateHelper;
 }();
 
@@ -33290,9 +33407,10 @@ var UIHelper = function () {
      *
      * @return {Promise} Callback on dismiss
      */
-    UIHelper.highlight = function highlight(element, label) {
+    UIHelper.highlight = function highlight(element) {
+        var label = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 'Label text';
         var direction = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : 'right';
-        var buttonLabel = arguments[3];
+        var buttonLabel = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : 'ok';
 
         if (element === false) {
             $('.widget--highlight').remove();
@@ -33308,6 +33426,8 @@ var UIHelper = function () {
             return Promise.resolve();
         }
 
+        var bounds = element.getBoundingClientRect();
+
         this.highlight(false);
 
         return new Promise(function (resolve) {
@@ -33317,17 +33437,11 @@ var UIHelper = function () {
                 resolve(element);
             };
 
-            var $highlight = _.div({ class: 'widget--highlight' + (label ? ' ' + direction : ''), style: 'top: ' + element.offsetTop + 'px; left: ' + element.offsetLeft + 'px;' }, _.div({ class: 'widget--highlight__backdrop' }), _.div({ class: 'widget--highlight__frame', style: 'width: ' + element.offsetWidth + 'px; height: ' + element.offsetHeight + 'px;' }), _.if(label, _.div({ class: 'widget--highlight__label' }, _.div({ class: 'widget--highlight__label__text' }, label), _.if(buttonLabel, _.button({ class: 'widget widget--button widget--highlight__button condensed' }, buttonLabel).click(function () {
+            var $highlight = _.div({ class: 'widget--highlight' + (label ? ' ' + direction : ''), style: 'top: ' + bounds.top + 'px; left: ' + bounds.left + 'px;' }, _.div({ class: 'widget--highlight__backdrop' }), _.div({ class: 'widget--highlight__frame', style: 'width: ' + bounds.width + 'px; height: ' + bounds.height + 'px;' }), _.div({ class: 'widget--highlight__label' }, _.div({ class: 'widget--highlight__label__text' }, label), _.button({ class: 'widget widget--button widget--highlight__button condensed' }, buttonLabel).click(function () {
                 dismiss();
-            }))))).click(function () {
-                if (buttonLabel) {
-                    return;
-                }
+            })));
 
-                dismiss();
-            });
-
-            _.append(element.parentElement, $highlight);
+            _.append(document.body, $highlight);
         });
     };
 
@@ -41907,13 +42021,13 @@ var FormEditor = function (_Crisp$View) {
     FormEditor.prototype.renderEntries = function renderEntries() {
         var _this7 = this;
 
-        return _.div({ class: 'editor__field__value' }, _.div({ class: 'widget-group' }, _.button({ class: 'widget widget--button low warning' }, 'Clear').click(function () {
+        return _.div({ class: 'editor__field__value' }, _.div({ class: 'widget-group' }, _.button({ class: 'widget widget--button condensed low warning' }, 'Clear').click(function () {
             UI.confirmModal('Clear', 'Clear "' + _this7.model.title + '"', 'Are you sure you want to clear all entries?', function () {
                 RequestHelper.request('post', 'forms/clear/' + _this7.model.id).then(function () {
                     _this7.model.entries = [];
                 }).catch(UI.errorModal);
             });
-        }), _.button({ class: 'widget widget--button low' }, 'Get .csv').click(function () {
+        }), _.button({ class: 'widget widget--button condensed low' }, 'Get .csv').click(function () {
             location = RequestHelper.environmentUrl('forms/' + _this7.model.id + '/entries');
         })));
     };
@@ -42197,7 +42311,9 @@ Crisp.Router.route('/connections/', function () {
     if (currentUserHasScope('connections')) {
         Crisp.View.get('NavbarMain').showTab('/connections/');
 
-        UI.setEditorSpaceContent([_.h1('Connections'), _.p('Right click in the Connections pane to create a new Connection.'), _.p('Click on a Connection to edit it.')], 'text');
+        UI.setEditorSpaceContent([_.h1('Connections'), _.p('Right click in the Connections pane to create a new Connection.'), _.p('Click on a Connection to edit it.'), _.p('Click the button below to start a tour of the Connections section.'), _.button({ class: 'widget widget--button condensed', title: 'Click here to start the tour' }, 'Start tour').click(function () {
+            HashBrown.Helpers.ConnectionHelper.startTour();
+        })], 'text');
     } else {
         location.hash = '/';
     }
@@ -42247,7 +42363,9 @@ var RequestHelper = __webpack_require__(2);
 Crisp.Router.route('/media/', function () {
     Crisp.View.get('NavbarMain').showTab('/media/');
 
-    UI.setEditorSpaceContent([_.h1('Media'), _.p('Right click in the Media pane to upload, edit and sort Media items.'), _.button({ class: 'widget widget--button' }, 'Upload media').click(function () {
+    UI.setEditorSpaceContent([_.h1('Media'), _.p('Click the button below to start a tour of the Media section.'), _.button({ class: 'widget widget--button condensed', title: 'Click here to start the tour' }, 'Start tour').click(function () {
+        HashBrown.Helpers.MediaHelper.startTour();
+    }), _.p('Click the button below to start uploading Media files.'), _.button({ class: 'widget widget--button' }, 'Upload media').click(function () {
         new HashBrown.Views.Modals.MediaUploader({
             onSuccess: function onSuccess(ids) {
                 // We got one id back
@@ -42289,7 +42407,9 @@ Crisp.Router.route('/schemas/', function () {
     if (currentUserHasScope('schemas')) {
         Crisp.View.get('NavbarMain').showTab('/schemas/');
 
-        UI.setEditorSpaceContent([_.h1('Schemas'), _.p('Right click in the Schemas pane to create a new Schema.'), _.p('Click on a Schema to edit it.')], 'text');
+        UI.setEditorSpaceContent([_.h1('Schemas'), _.p('Right click in the Schemas pane to create a new Schema.'), _.p('Click on a Schema to edit it.'), _.p('Click the button below to start a tour of the Schema section.'), _.button({ class: 'widget widget--button condensed', title: 'Click here to start the tour' }, 'Start tour').click(function () {
+            HashBrown.Helpers.SchemaHelper.startTour();
+        })], 'text');
     } else {
         location.hash = '/';
     }
@@ -42377,7 +42497,9 @@ Crisp.Router.route('/templates/', function () {
     if (currentUserHasScope('templates')) {
         Crisp.View.get('NavbarMain').showTab('/templates/');
 
-        UI.setEditorSpaceContent([_.h1('Templates'), _.p('Right click in the Templates pane to create a new Template.'), _.p('Click on a Template to edit it.')], 'text');
+        UI.setEditorSpaceContent([_.h1('Templates'), _.p('Right click in the Templates pane to create a new Template.'), _.p('Click on a Template to edit it.'), _.p('Click the button below to start a tour of the Templates section.'), _.button({ class: 'widget widget--button condensed', title: 'Click here to start the tour' }, 'Start tour').click(function () {
+            HashBrown.Helpers.TemplateHelper.startTour();
+        })], 'text');
     } else {
         location.hash = '/';
     }
@@ -42419,7 +42541,9 @@ var RequestHelper = __webpack_require__(2);
 Crisp.Router.route('/forms/', function () {
     Crisp.View.get('NavbarMain').showTab('/forms/');
 
-    UI.setEditorSpaceContent([_.h1('Forms'), _.p('Right click in the Forms pane to create a new Form.'), _.p('Click on a Form to edit it.')], 'text');
+    UI.setEditorSpaceContent([_.h1('Forms'), _.p('Right click in the Forms pane to create a new Form.'), _.p('Click on a Form to edit it.'), _.p('Click the button below to start a tour of the Forms section.'), _.button({ class: 'widget widget--button condensed', title: 'Click here to start the tour' }, 'Start tour').click(function () {
+        HashBrown.Helpers.FormHelper.startTour();
+    })], 'text');
 });
 
 // Edit
@@ -44816,9 +44940,11 @@ var MainMenu = function (_Crisp$View) {
 
 
     MainMenu.prototype.onClickQuestion = function onClickQuestion(topic) {
+        var modal = void 0;
+
         switch (topic) {
             case 'content':
-                var modal = UI.messageModal('Content', [_.p('This section contains all of your authored work. The content is a hierarchical tree of nodes that can contain text and media, in simple or complex structures.'), _.button({ class: 'widget widget--button condensed', title: 'Click here to start the tour' }, 'Start tour').click(function () {
+                modal = UI.messageModal('Content', [_.p('This section contains all of your authored work. The content is a hierarchical tree of nodes that can contain text and media, in simple or complex structures.'), _.button({ class: 'widget widget--button condensed', title: 'Click here to start the tour' }, 'Start tour').click(function () {
                     modal.close();
 
                     HashBrown.Helpers.ContentHelper.startTour();
@@ -44826,23 +44952,43 @@ var MainMenu = function (_Crisp$View) {
                 break;
 
             case 'media':
-                UI.messageModal('Media', [_.p('This is a gallery of your statically hosted files, such as images, videos and PDFs.'), _.p('The contents of this gallery depends on which <a href="#/connections">Connection</a> has been set up as the Media provider')]);
+                modal = UI.messageModal('Media', [_.p('This is a gallery of your statically hosted files, such as images, videos and PDFs.'), _.p('The contents of this gallery depends on which <a href="#/connections">Connection</a> has been set up as the Media provider'), _.button({ class: 'widget widget--button condensed', title: 'Click here to start the tour' }, 'Start tour').click(function () {
+                    modal.close();
+
+                    HashBrown.Helpers.MediaHelper.startTour();
+                })]);
                 break;
 
             case 'forms':
-                UI.messageModal('Forms', 'If you need an input form on your website, you can create the model for it here and see a list of the user submitted input.');
+                modal = UI.messageModal('Forms', [_.p('If you need an input form on your website, you can create the model for it here and see a list of the user submitted input.'), _.button({ class: 'widget widget--button condensed', title: 'Click here to start the tour' }, 'Start tour').click(function () {
+                    modal.close();
+
+                    HashBrown.Helpers.FormHelper.startTour();
+                })]);
                 break;
 
             case 'templates':
-                UI.messageModal('Templates', [_.p('This section contains rendering Templates for your authored Content.'), _.p('Templates are served through the Connection assigned as the Template provider.')]);
+                modal = UI.messageModal('Templates', [_.p('This section contains rendering Templates for your authored Content.'), _.p('Templates are served through the Connection assigned as the Template provider.'), _.button({ class: 'widget widget--button condensed', title: 'Click here to start the tour' }, 'Start tour').click(function () {
+                    modal.close();
+
+                    HashBrown.Helpers.TemplateHelper.startTour();
+                })]);
                 break;
 
             case 'connections':
-                UI.messageModal('Connections', [_.p('Connections are endpoints and resources for your content. Connections can be set up to publish your Content and Media to remote servers.'), _.p('They can also be set up to provide statically hosted media and serve rendering templates.')]);
+                modal = UI.messageModal('Connections', [_.p('Connections are endpoints and resources for your content. Connections can be set up to publish your Content and Media to remote servers.'), _.p('They can also be set up to provide statically hosted media and serve rendering templates.'), _.button({ class: 'widget widget--button condensed', title: 'Click here to start the tour' }, 'Start tour').click(function () {
+                    modal.close();
+
+                    HashBrown.Helpers.ConnectionHelper.startTour();
+                })]);
                 break;
 
             case 'schemas':
-                UI.messageModal('Schemas', 'This is a library of content structures. Here you define how your editable content looks and behaves. You can define schemas for both content nodes and property fields.');
+                modal = UI.messageModal('Schemas', [_.p('This is a library of content structures. Here you define how your editable content looks and behaves. You can define schemas for both content nodes and property fields.'), _.button({ class: 'widget widget--button condensed', title: 'Click here to start the tour' }, 'Start tour').click(function () {
+                    modal.close();
+
+                    HashBrown.Helpers.SchemaHelper.startTour();
+                })]);
                 break;
         }
     };
@@ -49223,6 +49369,83 @@ var UrlEditor = function (_FieldEditor) {
 }(FieldEditor);
 
 module.exports = UrlEditor;
+
+/***/ }),
+/* 272 */,
+/* 273 */,
+/* 274 */,
+/* 275 */,
+/* 276 */,
+/* 277 */,
+/* 278 */,
+/* 279 */,
+/* 280 */,
+/* 281 */,
+/* 282 */,
+/* 283 */,
+/* 284 */,
+/* 285 */,
+/* 286 */,
+/* 287 */,
+/* 288 */,
+/* 289 */,
+/* 290 */,
+/* 291 */,
+/* 292 */,
+/* 293 */,
+/* 294 */,
+/* 295 */,
+/* 296 */,
+/* 297 */,
+/* 298 */,
+/* 299 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+/**
+ * The client-side forms helper
+ */
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+var FormHelper = function () {
+    function FormHelper() {
+        _classCallCheck(this, FormHelper);
+    }
+
+    /**
+     * Starts a tour of the Forms section
+     */
+    FormHelper.startTour = function startTour() {
+        if (location.hash.indexOf('forms/') < 0) {
+            location.hash = '/forms/';
+        }
+
+        return new Promise(function (resolve) {
+            setTimeout(function () {
+                resolve();
+            }, 100);
+        }).then(function () {
+            return UI.highlight('.navbar-main__tab[data-route="/forms/"]', 'This the Forms section, where you define how end users can submit data to HashBrown.', 'right', 'next');
+        }).then(function () {
+            return UI.highlight('.navbar-main__pane[data-route="/forms/"]', 'Here you will find all of your Forms. You can right click here to create a new Form.', 'right', 'next');
+        }).then(function () {
+            var editor = document.querySelector('.editor--form');
+
+            if (!editor) {
+                return UI.highlight('.page--environment__space--editor', 'This is where the Form editor will be when you click a Form.', 'left', 'ok');
+            }
+
+            return UI.highlight('.editor--form', 'This is the Form editor, where you edit Forms.', 'left', 'ok');
+        });
+    };
+
+    return FormHelper;
+}();
+
+module.exports = FormHelper;
 
 /***/ })
 /******/ ]);

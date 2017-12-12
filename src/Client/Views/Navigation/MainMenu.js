@@ -49,9 +49,11 @@ class MainMenu extends Crisp.View {
      * @param {String} topic
      */
     onClickQuestion(topic) {
+        let modal;
+
         switch(topic) {
             case 'content':
-                let modal = UI.messageModal('Content', [ 
+                modal = UI.messageModal('Content', [ 
                     _.p('This section contains all of your authored work. The content is a hierarchical tree of nodes that can contain text and media, in simple or complex structures.'),
                     _.button({class: 'widget widget--button condensed', title: 'Click here to start the tour'}, 'Start tour')
                         .click(() => {
@@ -63,32 +65,66 @@ class MainMenu extends Crisp.View {
                 break;
 
             case 'media':
-                UI.messageModal('Media', [
+                modal = UI.messageModal('Media', [
                     _.p('This is a gallery of your statically hosted files, such as images, videos and PDFs.'),
-                    _.p('The contents of this gallery depends on which <a href="#/connections">Connection</a> has been set up as the Media provider')
+                    _.p('The contents of this gallery depends on which <a href="#/connections">Connection</a> has been set up as the Media provider'),
+                    _.button({class: 'widget widget--button condensed', title: 'Click here to start the tour'}, 'Start tour')
+                        .click(() => {
+                            modal.close();
+
+                            HashBrown.Helpers.MediaHelper.startTour();
+                        })
                 ]);
                 break;
 
             case 'forms':
-                UI.messageModal('Forms', 'If you need an input form on your website, you can create the model for it here and see a list of the user submitted input.');
+                modal = UI.messageModal('Forms', [
+                    _.p('If you need an input form on your website, you can create the model for it here and see a list of the user submitted input.'),
+                    _.button({class: 'widget widget--button condensed', title: 'Click here to start the tour'}, 'Start tour')
+                        .click(() => {
+                            modal.close();
+
+                            HashBrown.Helpers.FormHelper.startTour();
+                        })
+                ]);
                 break;
 
             case 'templates':
-                UI.messageModal('Templates', [
+                modal = UI.messageModal('Templates', [
                     _.p('This section contains rendering Templates for your authored Content.'),
-                    _.p('Templates are served through the Connection assigned as the Template provider.')
+                    _.p('Templates are served through the Connection assigned as the Template provider.'),
+                    _.button({class: 'widget widget--button condensed', title: 'Click here to start the tour'}, 'Start tour')
+                        .click(() => {
+                            modal.close();
+
+                            HashBrown.Helpers.TemplateHelper.startTour();
+                        })
                 ]);
                 break;
 
             case 'connections':
-                UI.messageModal('Connections', [
+                modal = UI.messageModal('Connections', [
                     _.p('Connections are endpoints and resources for your content. Connections can be set up to publish your Content and Media to remote servers.'),
-                    _.p('They can also be set up to provide statically hosted media and serve rendering templates.')
+                    _.p('They can also be set up to provide statically hosted media and serve rendering templates.'),
+                    _.button({class: 'widget widget--button condensed', title: 'Click here to start the tour'}, 'Start tour')
+                        .click(() => {
+                            modal.close();
+
+                            HashBrown.Helpers.ConnectionHelper.startTour();
+                        })
                 ]);
                 break;
 
             case 'schemas':
-                UI.messageModal('Schemas', 'This is a library of content structures. Here you define how your editable content looks and behaves. You can define schemas for both content nodes and property fields.');
+                modal = UI.messageModal('Schemas', [
+                    _.p('This is a library of content structures. Here you define how your editable content looks and behaves. You can define schemas for both content nodes and property fields.'),
+                    _.button({class: 'widget widget--button condensed', title: 'Click here to start the tour'}, 'Start tour')
+                        .click(() => {
+                            modal.close();
+
+                            HashBrown.Helpers.SchemaHelper.startTour();
+                        })
+                ]);
                 break;
         }
     }

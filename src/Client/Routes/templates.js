@@ -12,7 +12,12 @@ Crisp.Router.route('/templates/', function() {
             [
                 _.h1('Templates'),
                 _.p('Right click in the Templates pane to create a new Template.'),
-                _.p('Click on a Template to edit it.')
+                _.p('Click on a Template to edit it.'),
+                _.p('Click the button below to start a tour of the Templates section.'),
+                _.button({class: 'widget widget--button condensed', title: 'Click here to start the tour'}, 'Start tour')
+                    .click(() => {
+                        HashBrown.Helpers.TemplateHelper.startTour();
+                    })
             ],
             'text'
         );

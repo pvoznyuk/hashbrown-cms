@@ -7046,6 +7046,35 @@ var SchemaHelper = function (_SchemaHelperCommon) {
         }
     };
 
+    /**
+     * Starts a tour of the Schemas section
+     */
+
+
+    SchemaHelper.startTour = function startTour() {
+        if (location.hash.indexOf('schemas/') < 0) {
+            location.hash = '/schemas/';
+        }
+
+        return new Promise(function (resolve) {
+            setTimeout(function () {
+                resolve();
+            }, 100);
+        }).then(function () {
+            return UI.highlight('.navbar-main__tab[data-route="/schemas/"]', 'This the Schemas section, where the you define how your Content is built.', 'right', 'next');
+        }).then(function () {
+            return UI.highlight('.navbar-main__pane[data-route="/schemas/"]', 'Here you will find all of your Schemas. You can right click here to create a new Schema.', 'right', 'next');
+        }).then(function () {
+            var editor = document.querySelector('.editor--schema');
+
+            if (!editor) {
+                return UI.highlight('.page--environment__space--editor', 'This is where the Schema editor will be when you click a Schema.', 'left', 'ok');
+            }
+
+            return UI.highlight('.editor--schema', 'This is the Schema editor, where you edit Schemas.', 'left', 'ok');
+        });
+    };
+
     return SchemaHelper;
 }(SchemaHelperCommon);
 
@@ -7788,6 +7817,35 @@ var MediaHelper = function (_MediaHelperCommon) {
 
         // Set visual fixes for media picker mode
         $('.page--environment').addClass('media-picker');
+    };
+
+    /**
+     * Starts a tour of the Media section
+     */
+
+
+    MediaHelper.startTour = function startTour() {
+        if (location.hash.indexOf('media/') < 0) {
+            location.hash = '/media/';
+        }
+
+        return new Promise(function (resolve) {
+            setTimeout(function () {
+                resolve();
+            }, 100);
+        }).then(function () {
+            return UI.highlight('.navbar-main__tab[data-route="/media/"]', 'This the Media section, where all of your images, videos and other documents are.', 'right', 'next');
+        }).then(function () {
+            return UI.highlight('.navbar-main__pane[data-route="/media/"]', 'Here you will find all of your Media nodes, if you have set up a Connection as a Media provider. You can right click here to upload new Media content.', 'right', 'next');
+        }).then(function () {
+            var editor = document.querySelector('.editor--media');
+
+            if (!editor) {
+                return UI.highlight('.page--environment__space--editor', 'This is where the Media viewer will be when you click a Media node.', 'left', 'ok');
+            }
+
+            return UI.highlight('.editor--content', 'This is the Media viewer, where you preview Media nodes.', 'left', 'ok');
+        });
     };
 
     return MediaHelper;
@@ -9266,7 +9324,7 @@ var ContentHelper = function (_ContentHelperCommon) {
         return new Promise(function (resolve) {
             setTimeout(function () {
                 resolve();
-            }, 500);
+            }, 100);
         }).then(function () {
             return UI.highlight('.navbar-main__tab[data-route="/content/"]', 'This the Content section, where you will do all of your authoring.', 'right', 'next');
         }).then(function () {
@@ -9275,10 +9333,10 @@ var ContentHelper = function (_ContentHelperCommon) {
             var editor = document.querySelector('.editor--content');
 
             if (!editor) {
-                return UI.highlight('.page--environment__space--editor', 'This is where the Content editor will be when you click a Content node.', 'left', 'next');
+                return UI.highlight('.page--environment__space--editor', 'This is where the Content editor will be when you click a Content node.', 'left', 'ok');
             }
 
-            return UI.highlight('.editor--content', 'This is the Content editor, where you edit Content nodes.', 'left', 'next');
+            return UI.highlight('.editor--content', 'This is the Content editor, where you edit Content nodes.', 'left', 'ok');
         });
     };
 
@@ -15800,6 +15858,35 @@ var ConnectionHelper = function (_ConnectionHelperComm) {
 
     ConnectionHelper.getTemplateProvider = function getTemplateProvider() {
         return _ConnectionHelperComm.getTemplateProvider.call(this, ProjectHelper.currentProject, ProjectHelper.currentEnvironment);
+    };
+
+    /**
+     * Starts a tour of the Connection section
+     */
+
+
+    ConnectionHelper.startTour = function startTour() {
+        if (location.hash.indexOf('connections/') < 0) {
+            location.hash = '/connections/';
+        }
+
+        return new Promise(function (resolve) {
+            setTimeout(function () {
+                resolve();
+            }, 100);
+        }).then(function () {
+            return UI.highlight('.navbar-main__tab[data-route="/connections/"]', 'This the Connections section, where the you define how HashBrown interacts with Media, Templates and Content.', 'right', 'next');
+        }).then(function () {
+            return UI.highlight('.navbar-main__pane[data-route="/connections/"]', 'Here you will find all of your Connections. You can right click here to create a new Connection.', 'right', 'next');
+        }).then(function () {
+            var editor = document.querySelector('.editor--connection');
+
+            if (!editor) {
+                return UI.highlight('.page--environment__space--editor', 'This is where the Connection editor will be when you click a Connection.', 'left', 'ok');
+            }
+
+            return UI.highlight('.editor--connection', 'This is the Connection editor, where you edit Connections.', 'left', 'ok');
+        });
     };
 
     return ConnectionHelper;
@@ -26898,9 +26985,9 @@ var Input = function (_Widget) {
                 }), _.div({ class: 'widget--input__range-extra' }, this.value));
 
             case 'checkbox':
-                return _.div({ class: config.class, title: config.title }, _.if(config.placeholder, _.label({ for: 'checkbox-' + this.guid, class: 'widget--input__checkbox-label' }, config.placeholder)), _.input({ id: 'checkbox-' + this.guid, class: 'widget--input__checkbox-input', type: 'checkbox', checked: this.value }).on('change', function (e) {
+                return _.div({ class: config.class, title: config.title }, _.input({ id: 'checkbox-' + this.guid, class: 'widget--input__checkbox-input', type: 'checkbox', checked: this.value }).on('change', function (e) {
                     _this2.onChangeInternal(e.currentTarget.checked);
-                }), _.div({ class: 'widget--input__checkbox-background' }), _.div({ class: 'widget--input__checkbox-switch' }));
+                }), _.if(config.placeholder, _.label({ for: 'checkbox-' + this.guid, class: 'widget--input__checkbox-label' }, config.placeholder)), _.div({ class: 'widget--input__checkbox-background' }), _.div({ class: 'widget--input__checkbox-switch' }));
 
             case 'file':
                 return _.form({ class: config.class + (typeof this.onSubmit === 'function' ? ' widget-group' : ''), title: config.title }, _.label({ for: 'file-' + this.guid, class: 'widget--input__file-browse widget widget--button expanded' }, this.placeholder || 'Browse...'), _.input({ id: 'file-' + this.guid, class: 'widget--input__file-input', type: 'file', name: this.name || 'file', multiple: this.useMultiple, directory: this.useDirectory }).on('change', function (e) {
@@ -28005,6 +28092,7 @@ module.exports = {
     ConnectionHelper: __webpack_require__(98),
     ContentHelper: __webpack_require__(38),
     DebugHelper: __webpack_require__(212),
+    FormHelper: __webpack_require__(299),
     LanguageHelper: __webpack_require__(99),
     MediaHelper: __webpack_require__(28),
     ProjectHelper: __webpack_require__(5),
@@ -28346,6 +28434,35 @@ var TemplateHelper = function () {
         return null;
     };
 
+    /**
+     * Starts a tour of the Template section
+     */
+
+
+    TemplateHelper.startTour = function startTour() {
+        if (location.hash.indexOf('templates/') < 0) {
+            location.hash = '/templates/';
+        }
+
+        return new Promise(function (resolve) {
+            setTimeout(function () {
+                resolve();
+            }, 100);
+        }).then(function () {
+            return UI.highlight('.navbar-main__tab[data-route="/templates/"]', 'This the Templates section, where the you define how your Content looks on your website.', 'right', 'next');
+        }).then(function () {
+            return UI.highlight('.navbar-main__pane[data-route="/templates/"]', 'Here you will find all of your Templates, if you have set up a Connection as the Template provider. You can right click here to create a new Template.', 'right', 'next');
+        }).then(function () {
+            var editor = document.querySelector('.editor--template');
+
+            if (!editor) {
+                return UI.highlight('.page--environment__space--editor', 'This is where the Template editor will be when you click a Template.', 'left', 'ok');
+            }
+
+            return UI.highlight('.editor--template', 'This is the Template editor, where you edit Templates.', 'left', 'ok');
+        });
+    };
+
     return TemplateHelper;
 }();
 
@@ -28381,9 +28498,10 @@ var UIHelper = function () {
      *
      * @return {Promise} Callback on dismiss
      */
-    UIHelper.highlight = function highlight(element, label) {
+    UIHelper.highlight = function highlight(element) {
+        var label = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 'Label text';
         var direction = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : 'right';
-        var buttonLabel = arguments[3];
+        var buttonLabel = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : 'ok';
 
         if (element === false) {
             $('.widget--highlight').remove();
@@ -28399,6 +28517,8 @@ var UIHelper = function () {
             return Promise.resolve();
         }
 
+        var bounds = element.getBoundingClientRect();
+
         this.highlight(false);
 
         return new Promise(function (resolve) {
@@ -28408,17 +28528,11 @@ var UIHelper = function () {
                 resolve(element);
             };
 
-            var $highlight = _.div({ class: 'widget--highlight' + (label ? ' ' + direction : ''), style: 'top: ' + element.offsetTop + 'px; left: ' + element.offsetLeft + 'px;' }, _.div({ class: 'widget--highlight__backdrop' }), _.div({ class: 'widget--highlight__frame', style: 'width: ' + element.offsetWidth + 'px; height: ' + element.offsetHeight + 'px;' }), _.if(label, _.div({ class: 'widget--highlight__label' }, _.div({ class: 'widget--highlight__label__text' }, label), _.if(buttonLabel, _.button({ class: 'widget widget--button widget--highlight__button condensed' }, buttonLabel).click(function () {
+            var $highlight = _.div({ class: 'widget--highlight' + (label ? ' ' + direction : ''), style: 'top: ' + bounds.top + 'px; left: ' + bounds.left + 'px;' }, _.div({ class: 'widget--highlight__backdrop' }), _.div({ class: 'widget--highlight__frame', style: 'width: ' + bounds.width + 'px; height: ' + bounds.height + 'px;' }), _.div({ class: 'widget--highlight__label' }, _.div({ class: 'widget--highlight__label__text' }, label), _.button({ class: 'widget widget--button widget--highlight__button condensed' }, buttonLabel).click(function () {
                 dismiss();
-            }))))).click(function () {
-                if (buttonLabel) {
-                    return;
-                }
+            })));
 
-                dismiss();
-            });
-
-            _.append(element.parentElement, $highlight);
+            _.append(document.body, $highlight);
         });
     };
 
@@ -37930,6 +38044,76 @@ var MigrationEditor = function (_HashBrown$Views$Moda) {
 }(HashBrown.Views.Modals.Modal);
 
 module.exports = MigrationEditor;
+
+/***/ }),
+/* 279 */,
+/* 280 */,
+/* 281 */,
+/* 282 */,
+/* 283 */,
+/* 284 */,
+/* 285 */,
+/* 286 */,
+/* 287 */,
+/* 288 */,
+/* 289 */,
+/* 290 */,
+/* 291 */,
+/* 292 */,
+/* 293 */,
+/* 294 */,
+/* 295 */,
+/* 296 */,
+/* 297 */,
+/* 298 */,
+/* 299 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+/**
+ * The client-side forms helper
+ */
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+var FormHelper = function () {
+    function FormHelper() {
+        _classCallCheck(this, FormHelper);
+    }
+
+    /**
+     * Starts a tour of the Forms section
+     */
+    FormHelper.startTour = function startTour() {
+        if (location.hash.indexOf('forms/') < 0) {
+            location.hash = '/forms/';
+        }
+
+        return new Promise(function (resolve) {
+            setTimeout(function () {
+                resolve();
+            }, 100);
+        }).then(function () {
+            return UI.highlight('.navbar-main__tab[data-route="/forms/"]', 'This the Forms section, where you define how end users can submit data to HashBrown.', 'right', 'next');
+        }).then(function () {
+            return UI.highlight('.navbar-main__pane[data-route="/forms/"]', 'Here you will find all of your Forms. You can right click here to create a new Form.', 'right', 'next');
+        }).then(function () {
+            var editor = document.querySelector('.editor--form');
+
+            if (!editor) {
+                return UI.highlight('.page--environment__space--editor', 'This is where the Form editor will be when you click a Form.', 'left', 'ok');
+            }
+
+            return UI.highlight('.editor--form', 'This is the Form editor, where you edit Forms.', 'left', 'ok');
+        });
+    };
+
+    return FormHelper;
+}();
+
+module.exports = FormHelper;
 
 /***/ })
 /******/ ]);

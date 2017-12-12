@@ -132,6 +132,36 @@ class MediaHelper extends MediaHelperCommon {
         // Set visual fixes for media picker mode
         $('.page--environment').addClass('media-picker');
     }
+
+    /**
+     * Starts a tour of the Media section
+     */
+    static startTour() {
+        if(location.hash.indexOf('media/') < 0) {
+            location.hash = '/media/';
+        }
+       
+        return new Promise((resolve) => {
+            setTimeout(() => {
+                resolve();
+            }, 100);
+        })
+        .then(() => {
+            return UI.highlight('.navbar-main__tab[data-route="/media/"]', 'This the Media section, where all of your images, videos and other documents are.', 'right', 'next')
+        })
+        .then(() => {
+            return UI.highlight('.navbar-main__pane[data-route="/media/"]', 'Here you will find all of your Media nodes, if you have set up a Connection as a Media provider. You can right click here to upload new Media content.', 'right', 'next');
+        })
+        .then(() => {
+            let editor = document.querySelector('.editor--media');
+
+            if(!editor) {
+                return UI.highlight('.page--environment__space--editor', 'This is where the Media viewer will be when you click a Media node.', 'left', 'ok');
+            }
+                
+            return UI.highlight('.editor--content', 'This is the Media viewer, where you preview Media nodes.', 'left', 'ok');
+        });
+    }
 }
 
 module.exports = MediaHelper;

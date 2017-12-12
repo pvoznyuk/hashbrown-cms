@@ -15,7 +15,7 @@
     &.password,
     &.number {
         border-radius: 0.2rem;
-        border: 2px solid $standard;
+        border: 2px solid $standard-dark;
         padding: 0 0.5rem;
         height: 2rem;
         width: 100%;
@@ -171,19 +171,14 @@
             margin-bottom: 0 !important;
             cursor: pointer;
             font-weight: 400;
-            background-color: $primary;
-            color: $primary-text;
             max-width: none !important;
             border-top-right-radius: 0.2rem;
             border-bottom-right-radius: 0.2rem;
             position: absolute;
             white-space: nowrap;
-            left: 4rem;
-            border-left: 2px solid $primary-text;
-            
-            &:hover {
-                background-color: $primary-dark;
-            }
+            left: 1.8rem;
+            background-color: $standard-darker;
+            transition: background-color 0.33s ease, color 0.33s ease;
         }
 
         &-input {
@@ -223,6 +218,11 @@
         
         &-input:checked ~ &-background {
             background-color: $primary;
+        }
+
+        &-input:checked ~ &-label {
+            background-color: $primary;
+            color: $primary-text;
         }
     }
 }

@@ -265,7 +265,7 @@ class FormEditor extends Crisp.View {
     renderEntries() {
         return _.div({class: 'editor__field__value'},
             _.div({class: 'widget-group'},
-                _.button({class: 'widget widget--button low warning'}, 'Clear').click(() => {
+                _.button({class: 'widget widget--button condensed low warning'}, 'Clear').click(() => {
                     UI.confirmModal('Clear', 'Clear "' + this.model.title + '"', 'Are you sure you want to clear all entries?', () => {
                         RequestHelper.request('post', 'forms/clear/' + this.model.id)
                         .then(() => {
@@ -274,7 +274,7 @@ class FormEditor extends Crisp.View {
                         .catch(UI.errorModal);
                     });
                 }),
-                _.button({class: 'widget widget--button low'}, 'Get .csv').click(() => {
+                _.button({class: 'widget widget--button condensed low'}, 'Get .csv').click(() => {
                     location = RequestHelper.environmentUrl('forms/' + this.model.id + '/entries');
                 })
             )

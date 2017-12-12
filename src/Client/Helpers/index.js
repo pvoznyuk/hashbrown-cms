@@ -7,6 +7,7 @@ module.exports = {
     ConnectionHelper: require('./ConnectionHelper'),
     ContentHelper: require('./ContentHelper'),
     DebugHelper: require('./DebugHelper'),
+    FormHelper: require('./FormHelper'),
     LanguageHelper: require('./LanguageHelper'),
     MediaHelper: require('./MediaHelper'),
     ProjectHelper: require('./ProjectHelper'),

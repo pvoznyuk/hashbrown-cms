@@ -11,7 +11,12 @@ Crisp.Router.route('/connections/', function() {
             [
                 _.h1('Connections'),
                 _.p('Right click in the Connections pane to create a new Connection.'),
-                _.p('Click on a Connection to edit it.')
+                _.p('Click on a Connection to edit it.'),
+                _.p('Click the button below to start a tour of the Connections section.'),
+                _.button({class: 'widget widget--button condensed', title: 'Click here to start the tour'}, 'Start tour')
+                    .click(() => {
+                        HashBrown.Helpers.ConnectionHelper.startTour();
+                    })
             ],
             'text'
         );

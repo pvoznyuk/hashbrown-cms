@@ -16,7 +16,7 @@ class UIHelper {
      *
      * @return {Promise} Callback on dismiss
      */
-    static highlight(element, label, direction = 'right', buttonLabel) {
+    static highlight(element, label = 'Label text', direction = 'right', buttonLabel = 'ok') {
         if(element === false) {
             $('.widget--highlight').remove();
 
@@ -29,6 +29,8 @@ class UIHelper {
 
         if(!element) { return Promise.resolve(); }
 
+        let bounds = element.getBoundingClientRect();
+            
         this.highlight(false);
 
         return new Promise((resolve) => {
@@ -38,27 +40,19 @@ class UIHelper {
                 resolve(element);
             };
             
-            let $highlight = _.div({class: 'widget--highlight' + (label ? ' ' + direction : ''), style: 'top: ' + element.offsetTop + 'px; left: ' + element.offsetLeft + 'px;'},
+            let $highlight = _.div({class: 'widget--highlight' + (label ? ' ' + direction : ''), style: 'top: ' + bounds.top + 'px; left: ' + bounds.left + 'px;'},
                 _.div({class: 'widget--highlight__backdrop'}),
-                _.div({class: 'widget--highlight__frame', style: 'width: ' + element.offsetWidth + 'px; height: ' + element.offsetHeight + 'px;'}),
-                _.if(label,
-                    _.div({class: 'widget--highlight__label'},
-                        _.div({class: 'widget--highlight__label__text'}, label),
-                        _.if(buttonLabel,
-                            _.button({class: 'widget widget--button widget--highlight__button condensed'}, buttonLabel)
-                                .click(() => {
-                                    dismiss();
-                                })
-                        )
-                    )
+                _.div({class: 'widget--highlight__frame', style: 'width: ' + bounds.width + 'px; height: ' + bounds.height + 'px;'}),
+                _.div({class: 'widget--highlight__label'},
+                    _.div({class: 'widget--highlight__label__text'}, label),
+                    _.button({class: 'widget widget--button widget--highlight__button condensed'}, buttonLabel)
+                        .click(() => {
+                            dismiss();
+                        })
                 )
-            ).click(() => {
-                if(buttonLabel) { return; }
-
-                dismiss();
-            });
+            );
             
-            _.append(element.parentElement, $highlight);
+            _.append(document.body, $highlight);
         });
     }
 

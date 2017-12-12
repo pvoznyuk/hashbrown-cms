@@ -446,7 +446,6 @@ h1, h2, h3, h4, h5, h6 {
 .navbar-main {
   display: flex;
   height: 100%;
-  width: 24rem;
   position: relative;
   z-index: 100; }
   @media (max-width: 991px) {
@@ -1657,8 +1656,7 @@ h1, h2, h3, h4, h5, h6 {
       margin-bottom: 0.5rem; }
     .widget-group > .widget {
       border-radius: 0 !important;
-      flex-grow: 1;
-      flex-basis: 0; }
+      flex-grow: 1; }
     .widget-group:not(.vertical) > .widget:first-child {
       border-top-left-radius: 0.2rem !important;
       border-bottom-left-radius: 0.2rem !important; }
@@ -1957,7 +1955,7 @@ h1, h2, h3, h4, h5, h6 {
     line-height: 3rem; }
   .widget--input.text, .widget--input.password, .widget--input.number {
     border-radius: 0.2rem;
-    border: 2px solid #ffffff;
+    border: 2px solid #eeeeee;
     padding: 0 0.5rem;
     height: 2rem;
     width: 100%;
@@ -2076,17 +2074,14 @@ h1, h2, h3, h4, h5, h6 {
     margin-bottom: 0 !important;
     cursor: pointer;
     font-weight: 400;
-    background-color: #e70d3b;
-    color: #ffffff;
     max-width: none !important;
     border-top-right-radius: 0.2rem;
     border-bottom-right-radius: 0.2rem;
     position: absolute;
     white-space: nowrap;
-    left: 4rem;
-    border-left: 2px solid #ffffff; }
-    .widget--input__checkbox-label:hover {
-      background-color: #b70a2f; }
+    left: 1.8rem;
+    background-color: #dddddd;
+    transition: background-color 0.33s ease, color 0.33s ease; }
   .widget--input__checkbox-input {
     cursor: pointer;
     opacity: 0;
@@ -2116,6 +2111,9 @@ h1, h2, h3, h4, h5, h6 {
     transform: translateX(0.8rem); }
   .widget--input__checkbox-input:checked ~ .widget--input__checkbox-background {
     background-color: #e70d3b; }
+  .widget--input__checkbox-input:checked ~ .widget--input__checkbox-label {
+    background-color: #e70d3b;
+    color: #ffffff; }
 
 /**
  * An element for highlighting and explaining other elements

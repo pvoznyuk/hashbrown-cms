@@ -12,7 +12,12 @@ Crisp.Router.route('/forms/', function() {
         [
             _.h1('Forms'),
             _.p('Right click in the Forms pane to create a new Form.'),
-            _.p('Click on a Form to edit it.')
+            _.p('Click on a Form to edit it.'),
+            _.p('Click the button below to start a tour of the Forms section.'),
+            _.button({class: 'widget widget--button condensed', title: 'Click here to start the tour'}, 'Start tour')
+                .click(() => {
+                    HashBrown.Helpers.FormHelper.startTour();
+                }),
         ],
         'text'
     );

@@ -12,7 +12,12 @@ Crisp.Router.route('/schemas/', function() {
             [
                 _.h1('Schemas'),
                 _.p('Right click in the Schemas pane to create a new Schema.'),
-                _.p('Click on a Schema to edit it.')
+                _.p('Click on a Schema to edit it.'),
+                _.p('Click the button below to start a tour of the Schema section.'),
+                _.button({class: 'widget widget--button condensed', title: 'Click here to start the tour'}, 'Start tour')
+                    .click(() => {
+                        HashBrown.Helpers.SchemaHelper.startTour();
+                    })
             ],
             'text'
         );
